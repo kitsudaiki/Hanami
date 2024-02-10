@@ -16,17 +16,17 @@ assignees: kitsudaiki
 ### Acceptance Criteria
 
 <!--
-List of cirteria, which have to be fullfilled in order to complete the ticket
+List of criteria, which have to be fulfilled in order to complete the ticket
 
 Example: 
-1. Fixed styling in documenation in chapter ...
+1. Fixed styling in documentation in chapter ...
 2. Fixed typo in class ...
 3. Added missing comments in file ...
 -->
 
 ### Additional Information
 
-<!-- If available add link, hints, related issues or other useful information, which help to handle the tickete here. -->
+<!-- If available add link, hints, related issues or other useful information, which help to handle the ticket here. -->
 
 ### Blocked by
 

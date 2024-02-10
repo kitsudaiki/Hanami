@@ -16,19 +16,19 @@ assignees: kitsudaiki
 ### Acceptance Criteria
 
 <!--
-List of cirteria, which have to be fullfilled in order to complete the ticket
+List of criteria, which have to be fulfilled in order to complete the ticket
 
 Example: 
 1. Added ... to ...
-2. The programm is capable of ...
+2. The program is capable of ...
 3. Unit-tests were written for the new feature 
 4. Documentation was updated in chapter ...
-5. Everthing was tested on ...
+5. Everything was tested on ...
 -->
 
 ### Additional Information
 
-<!-- If available add link, hints, related issues or other useful information, which help to handle the tickete here. -->
+<!-- If available add link, hints, related issues or other useful information, which help to handle the ticket here. -->
 
 ### Blocked by
 
