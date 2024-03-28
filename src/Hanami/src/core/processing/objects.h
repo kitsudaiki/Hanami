@@ -241,7 +241,8 @@ static_assert(sizeof(TempNeuronBlock) == 2048);
 struct SynapseConnection {
     SourceLocationPtr origin;
     float offset = 0.0f;
-    uint8_t padding[4];
+    bool inputConnected = false;
+    uint8_t padding[3];
 
     SynapseConnection()
     {

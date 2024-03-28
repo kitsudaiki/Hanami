@@ -230,7 +230,9 @@ Cluster::setClusterState(const std::string& newState)
 void
 Cluster::updateClusterState()
 {
-    std::lock_guard<std::mutex> guard(m_segmentCounterLock);
+    std::lock_guard<std::mutex> guard(m_clusterStateLock);
+
+    enableCreation = false;
 
     // trigger next lerning phase, if already in phase 1
     if (mode == ClusterProcessingMode::TRAIN_FORWARD_MODE) {

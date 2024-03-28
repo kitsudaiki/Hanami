@@ -38,7 +38,6 @@ class LogicalHost;
 
 namespace Hanami
 {
-class EventQueue;
 class Statemachine;
 }  // namespace Hanami
 
@@ -49,22 +48,27 @@ class Cluster
     Cluster(LogicalHost* host, const void* data, const uint64_t dataSize);
     ~Cluster();
 
-    // cluster-data
-    Hanami::DataBuffer clusterData;
+    // processing
     CudaPointerHandle gpuPointer;
     LogicalHost* attachedHost;
+    uint32_t reductionCounter = 0;
+    ClusterProcessingMode mode = NORMAL_MODE;
+    HttpWebsocketThread* msgClient = nullptr;
+    Hanami::Statemachine* stateMachine = nullptr;
+    TaskHandle_State* taskHandleState = nullptr;
+    bool enableCreation = false;
 
+    // cluster-data
+    Hanami::DataBuffer clusterData;
     ClusterHeader* clusterHeader = nullptr;
     float* inputValues = nullptr;
     float* outputValues = nullptr;
     float* expectedValues = nullptr;
-    TempNeuronBlock* tempNeuronBlocks = nullptr;
-
     std::map<std::string, Brick*> namedBricks;
     Brick* bricks = nullptr;
     NeuronBlock* neuronBlocks = nullptr;
+    TempNeuronBlock* tempNeuronBlocks = nullptr;
     uint32_t numberOfNeuronBlocks = 0;
-    std::atomic<int> counter;
 
     // meta
     const std::string getUuid();
@@ -91,18 +95,12 @@ class Cluster
     void startReductionCycle();
     bool setClusterState(const std::string& newState);
 
-    ClusterProcessingMode mode = NORMAL_MODE;
-    HttpWebsocketThread* msgClient = nullptr;
-
-    Hanami::Statemachine* stateMachine = nullptr;
-    TaskHandle_State* taskHandleState = nullptr;
-
+    // counter for parallel-processing
     bool incrementAndCompare(const uint32_t referenceValue);
-    uint32_t reductionCounter = 0;
+    std::atomic<int> counter;
 
    private:
-    std::mutex m_segmentCounterLock;
-    std::mutex m_counterMutex;
+    std::mutex m_clusterStateLock;
 };
 
 #endif  // HANAMI_CLUSTER_H

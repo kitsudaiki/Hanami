@@ -136,9 +136,10 @@ createNewSection(Cluster& cluster,
                  const float offset,
                  ItemBuffer& synapseBlockBuffer)
 {
-    // get origin objects
+    // get origin object
     NeuronBlock* originBlock = &cluster.neuronBlocks[originLocation.blockId];
     Neuron* originNeuron = &originBlock->neurons[originLocation.neuronId];
+    const bool inputConnected = cluster.bricks[originBlock->brickId].isInputBrick;
     const uint8_t newPosInNeuron = originNeuron->getFirstZeroBit();
     if (newPosInNeuron == UNINIT_STATE_8) {
         return false;
@@ -167,6 +168,7 @@ createNewSection(Cluster& cluster,
     targetConnection->origin = originLocation;
     targetConnection->offset = offset;
     targetConnection->origin.posInNeuron = newPosInNeuron;
+    targetConnection->inputConnected = inputConnected;
     originNeuron->setInUse(newPosInNeuron);
 
     return true;

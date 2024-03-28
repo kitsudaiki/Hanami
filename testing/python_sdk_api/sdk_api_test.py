@@ -262,7 +262,7 @@ def test_workflow():
         cluster.switch_host(token, address, cluster_uuid, target_host_uuid, False)
 
     # run training
-    for i in range(0, 1):
+    for i in range(0, 5):
         result = task.create_task(
             token, address, generic_task_name, "train", cluster_uuid, train_dataset_uuid, False)
         task_uuid = json.loads(result)["uuid"]
