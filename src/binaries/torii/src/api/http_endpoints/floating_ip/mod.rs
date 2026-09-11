@@ -12,6 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod proxy;
-pub mod route;
-pub mod floating_ip;
+pub mod add_floating_ip_internal_v1_0;

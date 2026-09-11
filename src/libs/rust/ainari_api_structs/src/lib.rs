@@ -27,6 +27,7 @@ pub mod network_structs;
 pub mod project_structs;
 pub mod proxy_structs;
 pub mod quota_structs;
+pub mod route_structs;
 pub mod secret_structs;
 pub mod task_structs;
 pub mod user_context;

@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod proxy;
-pub mod route;
-pub mod floating_ip;
+#![no_std]
+
+// This file exists to enable the library target.
