@@ -17,8 +17,8 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::instance_table;
 use crate::database::task_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -28,7 +28,7 @@ use ainari_api_structs::user_context::UserContext;
 #[api_operation(
     tag = "task",
     summary = "Get task",
-    description = r###"Get information of a task of a instance from the database."###,
+    description = r###"Get information of a task of a virtual_machine from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -38,13 +38,13 @@ pub async fn get_task(
     uuids: Path<(Uuid, Uuid)>,
     context: UserContext,
 ) -> Result<Json<TaskResp>, ErrorResponse> {
-    let (instance_uuid, task_uuid) = uuids.into_inner();
+    let (virtual_machine_uuid, task_uuid) = uuids.into_inner();
 
-    // check if instance exist
-    instance_table::get_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance", &instance_uuid, e))?;
+    // check if virtual_machine exist
+    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
 
-    let task_data = task_table::get_task(&task_uuid, &instance_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

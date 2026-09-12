@@ -32,50 +32,23 @@ use ainari_dataset::file_encryption::{decrypt_file, encrypt_file};
 use crate::config;
 use crate::database::task_table;
 
+use crate::core::virtual_machine::cloud_hypervisor::create_ch_virtual_machine::create_ch_virtual_machine;
+
 use super::super::processing::task_queue::*;
 
 #[derive(Debug)]
-pub struct CloudHypervisorInstanceCreateInfo {
-    pub inputs: HashMap<String, DataSetFileReadHandle>,
-    pub outputs: HashMap<String, DataSetFileReadHandle>,
-    pub temp_dir: String,
-}
-
-/// Represents the information needed for a request task.
-/// Contains input dataset handles, a write handle for results, output secret, and a temporary directory path.
-#[derive(Debug)]
-pub struct RequestInfo {
-    pub inputs: HashMap<String, DataSetFileReadHandle>,
-    pub results: DataSetFileWriteHandle,
-    pub output_secret: Secret,
-    pub temp_dir: String,
-}
-
-/// Contains information for saving a checkpoint.
-/// Includes the Onsen address, file path, and encryption secret.
-#[derive(Debug)]
-pub struct CheckpointSaveInfo {
-    pub onsen_address: String,
-    pub file_path: String,
-    pub secret: Secret,
-}
-
-/// Contains information for restoring a checkpoint.
-/// Includes the Onsen address, file path, and decryption secret.
-#[derive(Debug)]
-pub struct CheckpointRestoreInfo {
-    pub onsen_address: String,
-    pub file_path: String,
-    pub secret: Secret,
+pub struct CloudHypervisorVirtualMachineCreateInfo {
+    pub vm_uuid: Uuid,
+    pub number_of_cores: i32,
+    pub memory_size: i64,
+    pub public_key: Secret,
 }
 
 /// An enumeration of different task variants that a Task can have.
 /// Each variant contains different information relevant to that type of task.
 #[derive(Debug)]
 pub enum TaskVariant {
-    CloudHypervisorInstanceCreate(CloudHypervisorInstanceCreateInfo),
-    CheckpointSave(CheckpointSaveInfo),
-    CheckpointRestore(CheckpointRestoreInfo),
+    CloudHypervisorVirtualMachineCreate(CloudHypervisorVirtualMachineCreateInfo),
 }
 
 /// Metadata for tracking the progress and state of a task.
@@ -96,7 +69,7 @@ pub struct TaskMeta {
 }
 
 impl TaskMeta {
-    /// Creates a new TaskMeta instance with the given parameters.
+    /// Creates a new TaskMeta virtual_machine with the given parameters.
     ///
     /// # Arguments
     ///
@@ -106,7 +79,7 @@ impl TaskMeta {
     ///
     /// # Returns
     ///
-    /// A new TaskMeta instance initialized with the given parameters.
+    /// A new TaskMeta virtual_machine initialized with the given parameters.
     pub fn new(
         number_of_cycler_per_epoch: u64,
         number_of_epochs: u64,
@@ -130,7 +103,7 @@ impl TaskMeta {
 }
 
 /// Represents a task that can be executed by the system.
-/// Contains a unique identifier, instance identifier, task information, and metadata.
+/// Contains a unique identifier, virtual_machine identifier, task information, and metadata.
 #[derive(Debug)]
 pub struct Task {
     pub uuid: Uuid,
@@ -180,9 +153,10 @@ impl Task {
         let _ = task_table::update_task_state(&self.uuid, &TaskState::Active);
 
         match &mut self.info {
-            TaskVariant::CloudHypervisorInstanceCreate(task_info) => Ok(()),
-            TaskVariant::CheckpointSave(task_info) => Ok(()),
-            TaskVariant::CheckpointRestore(task_info) => Ok(()),
+            TaskVariant::CloudHypervisorVirtualMachineCreate(task_info) => {
+                handle_vm_creation(&self.uuid, &self.resouce_uuid, &mut self.meta, task_info).await;
+                Ok(())
+            }
         }
     }
 
@@ -278,163 +252,189 @@ impl Task {
     }
 }
 
-/// Handles the task of saving a instance checkpoint.
-///
-/// This function creates a checkpoint of the instance, encrypts it, and uploads it to the specified
-/// storage location. It manages temporary files and updates the task state in the database.
-///
-/// # Arguments
-///
-/// * `task_uuid` - Unique identifier for the task
-/// * `instance_uuid` - Unique identifier for the instance
-/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-/// * `task_info` - Mutable reference to checkpoint save information containing storage details
-fn handle_checkpoint_save_task(
+async fn handle_vm_creation(
     task_uuid: &Uuid,
-    instance_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
     _: &mut TaskMeta,
-    task_info: &mut CheckpointSaveInfo,
+    task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
 ) {
-    // create file-paths for temporary files
-    let local_temp_file_path = format!(
-        "{}/{}",
-        config::CONFIG.storage.tempfile_location,
-        instance_uuid
-    );
-    let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
+    let root_disk_path = Some("/tmp/vm_test/ubuntu-24.04.raw".to_string());
+    let seed_disk_path = "/tmp/vm_test/seed.iso".to_string();
+    let tap_device_name = "tap-vm".to_string();
+    let mac_address = "02:00:00:00:00:42".to_string();
 
-    {
-        // let instance_handler = MODEL_HANDLER.read().expect("mutex poisoned");
-        // match instance_handler.create_checkpoint(instance_uuid, &local_temp_file_path) {
-        //     Ok(()) => {}
-        //     Err(_) => {
-        //         let _ = fs::remove_file(&local_temp_file_path);
-        //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-        //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-        //         return;
-        //     }
-        // }
-
-        // Create a single-threaded runtime
-        let rt = Builder::new_current_thread()
-            .enable_all() // I/O & timers
-            .build()
-            .expect("failed to build runtime");
-
-        // LocalSet allows spawn_local to work
-        let local = LocalSet::new();
-        let upload_resp = local.block_on(&rt, async {
-            encrypt_file(
-                &local_temp_file_path,
-                &local_encrypted_temp_file_path,
-                &task_info.secret,
-            )
-            .await?;
-            upload_file(
-                &task_info.onsen_address,
-                &task_info.file_path,
-                &local_encrypted_temp_file_path,
-            )
-            .await
-        });
-
-        match upload_resp {
-            Ok(()) => {}
-            Err(_) => {
-                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-                let _ = task_table::update_task_progress(task_uuid, &1, &1);
-                return;
-            }
-        }
-
-        let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-        let _ = task_table::update_task_progress(task_uuid, &1, &1);
+    let ret = create_ch_virtual_machine(
+        virtual_machine_uuid,
+        task_info.number_of_cores,
+        task_info.memory_size,
+        root_disk_path,
+        &seed_disk_path,
+        &tap_device_name,
+        &mac_address,
+    )
+    .await;
+    if ret.is_err() {
+        log::error!("fail");
     }
-
-    let _ = fs::remove_file(&local_temp_file_path);
-    let _ = fs::remove_file(&local_encrypted_temp_file_path);
 }
 
-/// Handles the task of restoring a instance from a checkpoint.
-///
-/// This function downloads an encrypted checkpoint file, decrypts it, and restores the instance from
-/// the checkpoint. It manages temporary files and updates the task state in the database.
-///
-/// # Arguments
-///
-/// * `task_uuid` - Unique identifier for the task
-/// * `instance_uuid` - Unique identifier for the instance
-/// * `_` - Unused TaskMeta parameter (kept for interface consistency)
-/// * `task_info` - Mutable reference to checkpoint restore information containing storage details
-fn handle_checkpoint_restore_task(
-    task_uuid: &Uuid,
-    _: &mut TaskMeta,
-    task_info: &mut CheckpointRestoreInfo,
-) {
-    // create file-paths for temporary files
-    let local_temp_file_path = format!(
-        "{}/{}",
-        config::CONFIG.storage.tempfile_location,
-        Uuid::new_v4()
-    );
-    let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
+// /// Handles the task of saving a virtual_machine checkpoint.
+// ///
+// /// This function creates a checkpoint of the virtual_machine, encrypts it, and uploads it to the specified
+// /// storage location. It manages temporary files and updates the task state in the database.
+// ///
+// /// # Arguments
+// ///
+// /// * `task_uuid` - Unique identifier for the task
+// /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
+// /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+// /// * `task_info` - Mutable reference to checkpoint save information containing storage details
+// fn handle_checkpoint_save_task(
+//     task_uuid: &Uuid,
+//     virtual_machine_uuid: &Uuid,
+//     _: &mut TaskMeta,
+//     task_info: &mut CheckpointSaveInfo,
+// ) {
+//     // create file-paths for temporary files
+//     let local_temp_file_path = format!(
+//         "{}/{}",
+//         config::CONFIG.storage.tempfile_location,
+//         virtual_machine_uuid
+//     );
+//     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
 
-    {
-        // Create a single-threaded runtime
-        let rt = Builder::new_current_thread()
-            .enable_all() // I/O & timers
-            .build()
-            .expect("failed to build runtime");
+//     {
+//         // let virtual_machine_handler = MODEL_HANDLER.read().expect("mutex poisoned");
+//         // match virtual_machine_handler.create_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
+//         //     Ok(()) => {}
+//         //     Err(_) => {
+//         //         let _ = fs::remove_file(&local_temp_file_path);
+//         //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+//         //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//         //         return;
+//         //     }
+//         // }
 
-        // LocalSet allows spawn_local to work
-        let local = LocalSet::new();
-        let download_resp = local.block_on(&rt, async {
-            let resp = download_file(
-                &task_info.onsen_address,
-                &task_info.file_path,
-                &local_encrypted_temp_file_path,
-            )
-            .await;
-            decrypt_file(
-                &local_encrypted_temp_file_path,
-                &local_temp_file_path,
-                &task_info.secret,
-            )
-            .await?;
+//         // Create a single-threaded runtime
+//         let rt = Builder::new_current_thread()
+//             .enable_all() // I/O & timers
+//             .build()
+//             .expect("failed to build runtime");
 
-            resp
-        });
+//         // LocalSet allows spawn_local to work
+//         let local = LocalSet::new();
+//         let upload_resp = local.block_on(&rt, async {
+//             encrypt_file(
+//                 &local_temp_file_path,
+//                 &local_encrypted_temp_file_path,
+//                 &task_info.secret,
+//             )
+//             .await?;
+//             upload_file(
+//                 &task_info.onsen_address,
+//                 &task_info.file_path,
+//                 &local_encrypted_temp_file_path,
+//             )
+//             .await
+//         });
 
-        match download_resp {
-            Ok(()) => {}
-            Err(e) => {
-                log::error!("Error in checkpoint-restore-task: {e}");
-                let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-                let _ = task_table::update_task_progress(task_uuid, &1, &1);
-                return;
-            }
-        }
+//         match upload_resp {
+//             Ok(()) => {}
+//             Err(_) => {
+//                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+//                 let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//                 return;
+//             }
+//         }
 
-        // // restore instance from the downloaded and decrypted checkpoint-file
-        // let mut instance_handler = MODEL_HANDLER.write().expect("mutex poisoned");
-        // match instance_handler.restore_checkpoint(instance_uuid, &local_temp_file_path) {
-        //     Ok(()) => {}
-        //     Err(_) => {
-        //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
-        //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
-        //         return;
-        //     }
-        // }
+//         let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
+//         let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//     }
 
-        // delete temporary checkpoint-file
-        let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
-        let _ = task_table::update_task_progress(task_uuid, &1, &1);
-    }
+//     let _ = fs::remove_file(&local_temp_file_path);
+//     let _ = fs::remove_file(&local_encrypted_temp_file_path);
+// }
 
-    // cleanup temp-files
-    let _ = fs::remove_file(&local_temp_file_path);
-    let _ = fs::remove_file(&local_encrypted_temp_file_path);
-}
+// /// Handles the task of restoring a virtual_machine from a checkpoint.
+// ///
+// /// This function downloads an encrypted checkpoint file, decrypts it, and restores the virtual_machine from
+// /// the checkpoint. It manages temporary files and updates the task state in the database.
+// ///
+// /// # Arguments
+// ///
+// /// * `task_uuid` - Unique identifier for the task
+// /// * `virtual_machine_uuid` - Unique identifier for the virtual_machine
+// /// * `_` - Unused TaskMeta parameter (kept for interface consistency)
+// /// * `task_info` - Mutable reference to checkpoint restore information containing storage details
+// fn handle_checkpoint_restore_task(
+//     task_uuid: &Uuid,
+//     _: &mut TaskMeta,
+//     task_info: &mut CheckpointRestoreInfo,
+// ) {
+//     // create file-paths for temporary files
+//     let local_temp_file_path = format!(
+//         "{}/{}",
+//         config::CONFIG.storage.tempfile_location,
+//         Uuid::new_v4()
+//     );
+//     let local_encrypted_temp_file_path = format!("{local_temp_file_path}_encrypted");
+
+//     {
+//         // Create a single-threaded runtime
+//         let rt = Builder::new_current_thread()
+//             .enable_all() // I/O & timers
+//             .build()
+//             .expect("failed to build runtime");
+
+//         // LocalSet allows spawn_local to work
+//         let local = LocalSet::new();
+//         let download_resp = local.block_on(&rt, async {
+//             let resp = download_file(
+//                 &task_info.onsen_address,
+//                 &task_info.file_path,
+//                 &local_encrypted_temp_file_path,
+//             )
+//             .await;
+//             decrypt_file(
+//                 &local_encrypted_temp_file_path,
+//                 &local_temp_file_path,
+//                 &task_info.secret,
+//             )
+//             .await?;
+
+//             resp
+//         });
+
+//         match download_resp {
+//             Ok(()) => {}
+//             Err(e) => {
+//                 log::error!("Error in checkpoint-restore-task: {e}");
+//                 let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+//                 let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//                 return;
+//             }
+//         }
+
+//         // // restore virtual_machine from the downloaded and decrypted checkpoint-file
+//         // let mut virtual_machine_handler = MODEL_HANDLER.write().expect("mutex poisoned");
+//         // match virtual_machine_handler.restore_checkpoint(virtual_machine_uuid, &local_temp_file_path) {
+//         //     Ok(()) => {}
+//         //     Err(_) => {
+//         //         let _ = task_table::update_task_state(task_uuid, &TaskState::Error);
+//         //         let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//         //         return;
+//         //     }
+//         // }
+
+//         // delete temporary checkpoint-file
+//         let _ = task_table::update_task_state(task_uuid, &TaskState::Finished);
+//         let _ = task_table::update_task_progress(task_uuid, &1, &1);
+//     }
+
+//     // cleanup temp-files
+//     let _ = fs::remove_file(&local_temp_file_path);
+//     let _ = fs::remove_file(&local_encrypted_temp_file_path);
+// }
 
 /// Removes a directory and all its contents from the filesystem.
 ///

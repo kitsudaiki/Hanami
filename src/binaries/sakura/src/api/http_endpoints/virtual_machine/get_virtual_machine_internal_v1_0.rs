@@ -17,38 +17,40 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::instance_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::instance_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::virtual_machine_structs::*;
 
 #[api_operation(
-    tag = "instance",
-    summary = "Get instance",
-    description = r###"Get information of a instance from the database."###,
+    tag = "virtual_machine",
+    summary = "Get virtual_machine",
+    description = r###"Get information of a virtual_machine from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_instance_internal(
-    instance_uuid: Path<Uuid>,
+pub async fn get_virtual_machine_internal(
+    virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<InstanceResp>, ErrorResponse> {
-    let instance_data = instance_table::get_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance", &instance_uuid, e))?;
+) -> Result<Json<VirtualMachineResp>, ErrorResponse> {
+    let virtual_machine_data =
+        virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context).map_err(
+            |e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e),
+        )?;
 
-    let resp = InstanceResp {
-        uuid: *instance_uuid,
-        name: instance_data.name,
+    let resp = VirtualMachineResp {
+        uuid: *virtual_machine_uuid,
+        name: virtual_machine_data.name,
         template: "".to_string(),
         torii_port: 0,
-        created_by: instance_data.created_by,
-        created_at: instance_data.created_at,
-        updated_by: instance_data.updated_by,
-        updated_at: instance_data.updated_at,
+        created_by: virtual_machine_data.created_by,
+        created_at: virtual_machine_data.created_at,
+        updated_by: virtual_machine_data.updated_by,
+        updated_at: virtual_machine_data.updated_at,
     };
 
     Ok(Json(resp))

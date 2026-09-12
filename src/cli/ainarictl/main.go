@@ -40,7 +40,7 @@ func init() {
 	ainari_resources.Init_Project_Commands(rootCmd)
 	ainari_resources.Init_Checkpoint_Commands(rootCmd)
 	ainari_resources.Init_Task_Commands(rootCmd)
-	ainari_resources.Init_Instance_Commands(rootCmd)
+	ainari_resources.Init_VirtualMachine_Commands(rootCmd)
 	ainari_resources.Init_Dataset_Commands(rootCmd)
 	ainari_resources.Init_Proxy_Commands(rootCmd)
 	ainari_resources.Init_Host_Commands(rootCmd)

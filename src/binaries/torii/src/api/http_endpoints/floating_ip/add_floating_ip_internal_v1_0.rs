@@ -47,25 +47,38 @@ pub async fn register_floating_ip_internal(
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
     let fip_addr: Ipv4Addr = match body.floating_ip.parse() {
-        Ok(ip) => ip, 
+        Ok(ip) => ip,
         Err(_) => return Err(ErrorResponse::BadRequest(format!("Invalid FIP"))),
     };
 
     let int_addr: Ipv4Addr = match body.internal_ip.parse() {
-        Ok(ip) => ip, 
+        Ok(ip) => ip,
         Err(_) => return Err(ErrorResponse::BadRequest(format!("Invalid Internal IP"))),
     };
 
     let mut st = ROUTE_HANDLER.lock().await;
-    st.floating_ips.insert(body.floating_ip.clone(), body.internal_ip.clone());
-    if st.fip_dnat_map.insert(u32::from(fip_addr), u32::from(int_addr), 0).is_err() {
-        return Err(ErrorResponse::InternalError(format!("eBPF Map error (DNAT)")));
+    st.floating_ips
+        .insert(body.floating_ip.clone(), body.internal_ip.clone());
+    if st
+        .fip_dnat_map
+        .insert(u32::from(fip_addr), u32::from(int_addr), 0)
+        .is_err()
+    {
+        return Err(ErrorResponse::InternalError(format!(
+            "eBPF Map error (DNAT)"
+        )));
     }
 
-    if st.fip_snat_map.insert(u32::from(int_addr), u32::from(fip_addr), 0).is_err() {
-        return Err(ErrorResponse::InternalError(format!("eBPF Map error (SNAT)")));
+    if st
+        .fip_snat_map
+        .insert(u32::from(int_addr), u32::from(fip_addr), 0)
+        .is_err()
+    {
+        return Err(ErrorResponse::InternalError(format!(
+            "eBPF Map error (SNAT)"
+        )));
     }
-    
+
     let resp = RouteResponse {
         success: true,
         message: "Floating IP mapped".to_string(),

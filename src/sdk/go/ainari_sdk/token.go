@@ -69,7 +69,7 @@ func RequestContext(address, user, passphrase string, skipTlsVerification bool) 
 	context.ToriiBaseAddress = toriiAddr["public_address"].(string)
 	context.skipTlsVerification = skipTlsVerification
 
-	// prepare the torii-base-address for the instance-access
+	// prepare the torii-base-address for the virtual_machine-access
 	parts := strings.Split(context.ToriiAddress, ":")
 	if len(parts) >= 2 {
 		context.ToriiBaseAddress = parts[0] + ":" + parts[1]

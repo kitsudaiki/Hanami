@@ -17,8 +17,8 @@ use actix_web::web::Path;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::instance_table;
 use crate::database::task_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -39,14 +39,14 @@ pub async fn abort_task(
     uuids: Path<(Uuid, Uuid)>,
     context: UserContext,
 ) -> Result<Json<TaskResp>, ErrorResponse> {
-    let (instance_uuid, task_uuid) = uuids.into_inner();
+    let (virtual_machine_uuid, task_uuid) = uuids.into_inner();
 
-    // check if instance exist
-    instance_table::get_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance", &instance_uuid, e))?;
+    // check if virtual_machine exist
+    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     // check current state of the task to avoid to abort finished and errored tasks
-    let old_task_data = task_table::get_task(&task_uuid, &instance_uuid, &context)
+    let old_task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     if old_task_data.task_state == TaskState::Aborted
@@ -64,7 +64,7 @@ pub async fn abort_task(
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     // get task from database
-    let task_data = task_table::get_task(&task_uuid, &instance_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

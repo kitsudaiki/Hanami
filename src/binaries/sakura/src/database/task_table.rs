@@ -125,7 +125,7 @@ pub fn init_task_table() -> Result<(), Box<dyn Error>> {
 ///
 /// # Arguments
 /// * `task_uuid` - Unique identifier for the task
-/// * `resource_uuid` - Identifier for the associated instance
+/// * `resource_uuid` - Identifier for the associated virtual_machine
 /// * `task_name` - Name of the task
 /// * `task_type` - Type of the task
 /// * `context` - User context containing user ID and project ID
@@ -181,19 +181,19 @@ fn add_task(task: TaskEntry) -> QueryResult<usize> {
 
 /// Retrieves a specific task from the database.
 ///
-/// This function fetches a task by its UUID and instance UUID, applying appropriate access control
+/// This function fetches a task by its UUID and virtual_machine UUID, applying appropriate access control
 /// based on the user's permissions in the provided context.
 ///
 /// # Arguments
 /// * `task_uuid` - UUID of the task to retrieve
-/// * `instance_uuid_in` - UUID of the associated instance
+/// * `virtual_machine_uuid_in` - UUID of the associated virtual_machine
 /// * `context` - User context containing user ID, project ID, and admin status
 ///
 /// # Returns
 /// * `Result<TaskEntry, enums::DbError>` - The requested task or an error if not found or other error occurs
 pub fn get_task(
     task_uuid: &Uuid,
-    instance_uuid_in: &Uuid,
+    virtual_machine_uuid_in: &Uuid,
     context: &UserContext,
 ) -> Result<TaskEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
@@ -201,11 +201,11 @@ pub fn get_task(
 
     // Start building the query with the required filters
     let mut query = tasks
-        // HINT (kitsudaiki): Had to rename the function-parameter resource_uuid to instance_uuid_in to have a different name,
+        // HINT (kitsudaiki): Had to rename the function-parameter resource_uuid to virtual_machine_uuid_in to have a different name,
         // because here in this filter, it results in conflicts in case both sides of the eq are named the same
         .filter(
             uuid.eq(task_uuid.to_string())
-                .and(resource_uuid.eq(instance_uuid_in.to_string())),
+                .and(resource_uuid.eq(virtual_machine_uuid_in.to_string())),
         )
         .into_boxed();
 
@@ -231,24 +231,27 @@ pub fn get_task(
     }
 }
 
-/// Lists all tasks associated with a specific instance in the database.
+/// Lists all tasks associated with a specific virtual_machine in the database.
 ///
-/// This function retrieves all tasks for a given instance UUID, applying appropriate access control
+/// This function retrieves all tasks for a given virtual_machine UUID, applying appropriate access control
 /// based on the user's permissions in the provided context.
 ///
 /// # Arguments
-/// * `instance_uuid_in` - UUID of the instance to list tasks for
+/// * `virtual_machine_uuid_in` - UUID of the virtual_machine to list tasks for
 /// * `context` - User context containing user ID, project ID, and admin status
 ///
 /// # Returns
 /// * `QueryResult<Vec<TaskEntry>>` - Vector of task entries or an error if one occurs
-pub fn list_tasks(instance_uuid_in: &Uuid, context: &UserContext) -> QueryResult<Vec<TaskEntry>> {
+pub fn list_tasks(
+    virtual_machine_uuid_in: &Uuid,
+    context: &UserContext,
+) -> QueryResult<Vec<TaskEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     use self::tasks::dsl::*;
 
     // Start building the query with the required filters
     let mut query = tasks
-        .filter(resource_uuid.eq(instance_uuid_in.to_string()))
+        .filter(resource_uuid.eq(virtual_machine_uuid_in.to_string()))
         .into_boxed();
 
     // Apply access control filters based on user permissions
@@ -430,7 +433,7 @@ mod tests {
         let _ = init_task_table();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -447,7 +450,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -479,7 +482,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -496,7 +499,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -514,7 +517,7 @@ mod tests {
             name: "Bob".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -546,14 +549,14 @@ mod tests {
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let task1 = TaskEntry {
             uuid: uuid1.clone(),
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -571,7 +574,7 @@ mod tests {
             name: "Bob".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -589,7 +592,7 @@ mod tests {
             name: "Poi".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -683,7 +686,7 @@ mod tests {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -700,7 +703,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -776,7 +779,7 @@ mod tests {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -793,7 +796,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -827,7 +830,7 @@ mod tests {
         let uuid1 = Uuid::new_v4();
         let error_msg = "This is an error".to_string();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -844,7 +847,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,
@@ -878,7 +881,7 @@ mod tests {
         init_task_table().unwrap();
         let uuid1 = Uuid::new_v4();
         let resource_uuid = Uuid::new_v4();
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let project_id = "test-project".to_string();
         let owner_id = "test-user".to_string();
@@ -888,7 +891,7 @@ mod tests {
             name: "Alice".to_string(),
             resource_uuid: resource_uuid.clone(),
             resource_type: resource_type.to_string(),
-            task_type: TaskType::InstanceCreate,
+            task_type: TaskType::VirtualMachineCreate,
             task_state: TaskState::Created,
             queued_at: None,
             started_at: None,

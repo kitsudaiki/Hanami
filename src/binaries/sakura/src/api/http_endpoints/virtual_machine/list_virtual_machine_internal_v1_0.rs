@@ -15,43 +15,43 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::instance_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::convert_uuid;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::instance_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::virtual_machine_structs::*;
 
 #[api_operation(
-    tag = "instance",
-    summary = "List instance",
-    description = r###"List basic information of all instance from the database."###,
+    tag = "virtual_machine",
+    summary = "List virtual_machine",
+    description = r###"List basic information of all virtual_machine from the database."###,
     error_code = 401,
     error_code = 500
 )]
-pub async fn list_instance_internal(
+pub async fn list_virtual_machine_internal(
     context: UserContext,
-) -> Result<Json<InstanceListResp>, ErrorResponse> {
-    let instances = match instance_table::list_instances(&context) {
-        Ok(instances) => instances,
+) -> Result<Json<VirtualMachineListResp>, ErrorResponse> {
+    let virtual_machines = match virtual_machine_table::list_virtual_machines(&context) {
+        Ok(virtual_machines) => virtual_machines,
         Err(e) => {
-            log::error!("Failed to get list of instances form database: '{e}'");
+            log::error!("Failed to get list of virtual_machines form database: '{e}'");
             return Err(ErrorResponse::InternalError("Internal Error".to_string()));
         }
     };
 
-    let mut resp = InstanceListResp {
-        instances: Vec::new(),
+    let mut resp = VirtualMachineListResp {
+        virtual_machines: Vec::new(),
     };
 
-    for instance in instances {
-        let obj = InstanceBasicResp {
-            uuid: instance.uuid,
-            name: instance.name,
+    for virtual_machine in virtual_machines {
+        let obj = VirtualMachineBasicResp {
+            uuid: virtual_machine.uuid,
+            name: virtual_machine.name,
             proxy_port: 0,
         };
 
-        resp.instances.push(obj);
+        resp.virtual_machines.push(obj);
     }
 
     Ok(Json(resp))

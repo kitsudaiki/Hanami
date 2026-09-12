@@ -18,29 +18,29 @@ use apistos::actix::NoContent;
 use apistos::api_operation;
 use uuid::Uuid;
 
-use crate::database::instance_table;
 use crate::database::task_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "instance",
-    summary = "Delete instance",
-    description = r###"Delete a instance from the database and core."###,
+    tag = "virtual_machine",
+    summary = "Delete virtual_machine",
+    description = r###"Delete a virtual_machine from the database and core."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn delete_instance_internal(
-    instance_uuid: Path<Uuid>,
+pub async fn delete_virtual_machine_internal(
+    virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<NoContent, ErrorResponse> {
-    // delete instance from database
-    instance_table::delete_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance", &instance_uuid, e))?;
+    // delete virtual_machine from database
+    virtual_machine_table::delete_virtual_machine(&virtual_machine_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     Ok(NoContent)
 }

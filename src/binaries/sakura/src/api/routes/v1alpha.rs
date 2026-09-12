@@ -16,8 +16,8 @@ use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::instance::*;
 use crate::api::http_endpoints::task::*;
+use crate::api::http_endpoints::virtual_machine::*;
 
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")
@@ -29,20 +29,33 @@ pub fn v1alpha_routes() -> Scope {
                 .service(resource("").route(get().to(is_ready_v1_0::get_ready_status))),
         )
         .service(
-            scope("/instance")
+            scope("/virtual_machine")
                 .service(
                     resource("/internal")
-                        .route(post().to(reserve_instance_internal_v1_0::create_instance_internal))
-                        .route(get().to(list_instance_internal_v1_0::list_instance_internal)),
-                )
-                .service(
-                    resource("/{instance_uuid}/internal")
-                        .route(get().to(get_instance_internal_v1_0::get_instance_internal))
+                        .route(post().to(
+                            reserve_virtual_machine_internal_v1_0::create_virtual_machine_internal,
+                        ))
                         .route(
-                            delete().to(delete_instance_internal_v1_0::delete_instance_internal),
+                            get().to(
+                                list_virtual_machine_internal_v1_0::list_virtual_machine_internal,
+                            ),
                         ),
                 )
-                .service(resource("/").route(post().to(create_instance_v1_0::create_instance)))
+                .service(
+                    resource("/{virtual_machine_uuid}/internal")
+                        .route(
+                            get().to(
+                                get_virtual_machine_internal_v1_0::get_virtual_machine_internal,
+                            ),
+                        )
+                        .route(delete().to(
+                            delete_virtual_machine_internal_v1_0::delete_virtual_machine_internal,
+                        )),
+                )
+                .service(
+                    resource("/")
+                        .route(post().to(create_virtual_machine_v1_0::create_virtual_machine)),
+                )
                 .service(
                     resource("/checkpoint_save")
                         .route(post().to(checkpoint_save_v1_0::checkpoint_save_task)),

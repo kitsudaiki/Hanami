@@ -20,6 +20,7 @@ mod database;
 use log::LevelFilter;
 
 use core::proxy_handler::*;
+use core::routing::*;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,6 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut proxy_handler = PROXY_HANDLER.write().await;
     proxy_handler.fill_proxy_handler().await?;
     drop(proxy_handler);
+
+    let route_handler = ROUTE_HANDLER.lock().await;
+    drop(route_handler);
 
     api::http_server::run_server().await?;
 

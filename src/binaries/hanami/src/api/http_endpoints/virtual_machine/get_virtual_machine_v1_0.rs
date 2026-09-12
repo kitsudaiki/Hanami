@@ -19,33 +19,36 @@ use uuid::Uuid;
 
 use crate::config;
 use crate::database::host_table;
-use crate::database::meta_instance_table;
+use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::instance_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::virtual_machine_structs::*;
 use ainari_clients::endpoints::*;
-use ainari_clients::instance as instance_clients;
 use ainari_clients::proxy as proxy_clients;
+use ainari_clients::virtual_machine as virtual_machine_clients;
 
 #[api_operation(
-    tag = "instance",
-    summary = "Get instance",
-    description = r###"Get information of a instance from the database."###,
+    tag = "virtual_machine",
+    summary = "Get virtual_machine",
+    description = r###"Get information of a virtual_machine from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_instance(
-    instance_uuid: Path<Uuid>,
+pub async fn get_virtual_machine(
+    virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
-) -> Result<Json<InstanceResp>, ErrorResponse> {
-    let instance_data = meta_instance_table::get_meta_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance-meta", &instance_uuid, e))?;
+) -> Result<Json<VirtualMachineResp>, ErrorResponse> {
+    let virtual_machine_data =
+        meta_virtual_machine_table::get_meta_virtual_machine(&virtual_machine_uuid, &context)
+            .map_err(|e| {
+                map_db_uuid_get_delete_error("virtual_machine-meta", &virtual_machine_uuid, e)
+            })?;
 
-    let sakura_uuid = convert_uuid(&instance_data.sakura_host_uuid)?;
+    let sakura_uuid = convert_uuid(&virtual_machine_data.sakura_host_uuid)?;
 
     let host_data = host_table::get_host(&sakura_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("sakura-host", &sakura_uuid, e))?;
@@ -57,7 +60,7 @@ pub async fn get_instance(
         .map_err(map_ainari_error_to_api_response)?;
 
     // send request to torii to get port
-    let proxy_uuid = convert_uuid(&instance_data.proxy_uuid)?;
+    let proxy_uuid = convert_uuid(&virtual_machine_data.proxy_uuid)?;
     let proxy_resp = proxy_clients::get_proxy(
         &endpoints.torii,
         &context.token,
@@ -67,19 +70,19 @@ pub async fn get_instance(
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    // get instance-information from sakura-host
-    let mut instance_resp = instance_clients::get_instance(
+    // get virtual_machine-information from sakura-host
+    let mut virtual_machine_resp = virtual_machine_clients::get_virtual_machine(
         &host_data.address,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &instance_uuid,
+        &virtual_machine_uuid,
         config::CONFIG.skip_tls_verification,
     )
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
     // set port in response
-    instance_resp.torii_port = proxy_resp.port;
+    virtual_machine_resp.torii_port = proxy_resp.port;
 
-    Ok(Json(instance_resp))
+    Ok(Json(virtual_machine_resp))
 }

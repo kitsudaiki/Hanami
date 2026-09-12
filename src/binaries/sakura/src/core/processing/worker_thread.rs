@@ -38,7 +38,7 @@ pub struct WorkerThread {
 }
 
 impl WorkerThread {
-    /// Creates a new WorkerThread instance.
+    /// Creates a new WorkerThread virtual_machine.
     ///
     /// This function initializes a new worker thread on the specified CPU core.
     /// The thread will process tasks from the worker queue until it is stopped.
@@ -47,7 +47,7 @@ impl WorkerThread {
     /// * `thread_id` - The ID of the CPU core to run the thread on
     ///
     /// # Returns
-    /// * `WorkerThread` - A new WorkerThread instance
+    /// * `WorkerThread` - A new WorkerThread virtual_machine
     pub fn new() -> Self {
         log::info!("Create Worker-Thread.");
 
@@ -106,7 +106,7 @@ impl WorkerThread {
             });
         });
 
-        // Return the new WorkerThread instance
+        // Return the new WorkerThread virtual_machine
         WorkerThread {
             queue,
             handle: Some(handle),
@@ -139,7 +139,7 @@ impl WorkerThread {
 }
 
 impl Drop for WorkerThread {
-    /// Ensures the worker thread is stopped when the WorkerThread instance is dropped.
+    /// Ensures the worker thread is stopped when the WorkerThread virtual_machine is dropped.
     fn drop(&mut self) {
         self.stop(); // make sure to stop thread on drop~!
     }

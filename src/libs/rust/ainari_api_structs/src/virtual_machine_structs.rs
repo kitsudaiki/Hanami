@@ -20,7 +20,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent, Validate)]
-pub struct InstanceCreateReq {
+pub struct VirtualMachineCreateReq {
     #[validate(length(min = 4, max = 127))]
     pub name: String,
     #[validate(length(min = 10))]
@@ -28,7 +28,7 @@ pub struct InstanceCreateReq {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct InstanceResp {
+pub struct VirtualMachineResp {
     pub uuid: Uuid,
     pub name: String,
     pub template: String,
@@ -40,13 +40,13 @@ pub struct InstanceResp {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct InstanceBasicResp {
+pub struct VirtualMachineBasicResp {
     pub uuid: Uuid,
     pub name: String,
     pub proxy_port: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
-pub struct InstanceListResp {
-    pub instances: Vec<InstanceBasicResp>,
+pub struct VirtualMachineListResp {
+    pub virtual_machines: Vec<VirtualMachineBasicResp>,
 }

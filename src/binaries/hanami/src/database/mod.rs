@@ -15,7 +15,7 @@
 pub mod db_handle;
 pub mod floating_ip_table;
 pub mod host_table;
-pub mod meta_instance_table;
+pub mod meta_virtual_machine_table;
 pub mod network_table;
 
 /// Initializes all database tables required for the application.
@@ -37,11 +37,11 @@ pub fn init_database() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    // Initialize meta instance table
-    match meta_instance_table::init_meta_instance_table() {
-        Ok(_) => log::info!("Initialized instance-database-table"),
+    // Initialize meta virtual_machine table
+    match meta_virtual_machine_table::init_meta_virtual_machine_table() {
+        Ok(_) => log::info!("Initialized virtual_machine-database-table"),
         Err(e) => {
-            log::error!("Failed to initialize instance-database-table: {e}");
+            log::error!("Failed to initialize virtual_machine-database-table: {e}");
             return Err(e);
         }
     };

@@ -17,11 +17,11 @@ pub mod checkpoint;
 pub mod dataset;
 pub mod endpoints;
 pub mod host;
-pub mod instance;
 pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;
 pub mod secret;
+pub mod virtual_machine;
 
 use actix_web::dev::{Decompress, Payload};
 use awc::error::SendRequestError;
@@ -41,7 +41,7 @@ use ainari_common::error::AinariError;
 ///
 /// # Returns
 ///
-/// A configured `awc::Client` instance.
+/// A configured `awc::Client` virtual_machine.
 pub fn prepare_client(address: &str, insecure: bool) -> Client {
     // Determine if SSL should be used based on the address prefix
     let use_ssl = address.starts_with("https://");

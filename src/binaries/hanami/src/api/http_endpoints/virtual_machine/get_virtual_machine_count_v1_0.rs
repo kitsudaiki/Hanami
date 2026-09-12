@@ -15,7 +15,7 @@
 use actix_web::web::Json;
 use apistos::api_operation;
 
-use crate::database::meta_instance_table;
+use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -23,21 +23,22 @@ use ainari_api_structs::common_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "instance",
-    summary = "Get number of instance of the user",
-    description = r###"Get number of instance of the user from the database."###,
+    tag = "virtual_machine",
+    summary = "Get number of virtual_machine of the user",
+    description = r###"Get number of virtual_machine of the user from the database."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn get_instance_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
-    let number_of_instance = meta_instance_table::count_meta_instances(&context)
-        .map_err(|e| map_db_count_error("instance-meta", e))?;
+pub async fn get_virtual_machine_count(context: UserContext) -> Result<Json<Count>, ErrorResponse> {
+    let number_of_virtual_machine =
+        meta_virtual_machine_table::count_meta_virtual_machines(&context)
+            .map_err(|e| map_db_count_error("virtual_machine-meta", e))?;
 
-    let instance_resp = Count {
-        number_of_items: number_of_instance as u64,
+    let virtual_machine_resp = Count {
+        number_of_items: number_of_virtual_machine as u64,
     };
 
-    Ok(Json(instance_resp))
+    Ok(Json(virtual_machine_resp))
 }

@@ -24,9 +24,9 @@ use crate::database::db_handle;
 use ainari_api_structs::user_context::UserContext;
 use ainari_common::enums;
 
-// Define the schema for meta_instances table
+// Define the schema for meta_virtual_machines table
 table! {
-    meta_instances (uuid) {
+    meta_virtual_machines (uuid) {
         uuid -> Varchar,
         name -> Varchar,
         sakura_host_uuid -> Varchar,
@@ -43,11 +43,11 @@ table! {
     }
 }
 
-/// Represents an entry in the meta_instances table.
-/// This struct contains all the fields required to create, query, and update meta instance records.
+/// Represents an entry in the meta_virtual_machines table.
+/// This struct contains all the fields required to create, query, and update meta virtual_machine records.
 #[derive(Insertable, Queryable, Selectable, Debug, PartialEq, Clone)]
-#[diesel(table_name = meta_instances)]
-pub struct MetaInstanceEntry {
+#[diesel(table_name = meta_virtual_machines)]
+pub struct MetaVirtualMachineEntry {
     pub uuid: String,
     pub name: String,
     pub sakura_host_uuid: String,
@@ -63,14 +63,14 @@ pub struct MetaInstanceEntry {
     pub deleted_by: Option<String>,
 }
 
-/// Initializes the meta_instances table in the database if it doesn't exist.
+/// Initializes the meta_virtual_machines table in the database if it doesn't exist.
 ///
 /// This function creates the table with the appropriate schema and constraints.
 /// It's typically called during application startup to ensure the required tables exist.
-pub fn init_meta_instance_table() -> Result<(), Box<dyn Error>> {
+pub fn init_meta_virtual_machine_table() -> Result<(), Box<dyn Error>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
     conn.batch_execute(
-        "CREATE TABLE IF NOT EXISTS meta_instances (
+        "CREATE TABLE IF NOT EXISTS meta_virtual_machines (
         uuid VARCHAR(40) PRIMARY KEY,
         name VARCHAR(256),
         sakura_host_uuid VARCHAR(40),
@@ -90,30 +90,30 @@ pub fn init_meta_instance_table() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Adds a new meta instance to the database.
+/// Adds a new meta virtual_machine to the database.
 ///
-/// This function creates a new MetaInstanceEntry with the provided parameters and inserts it into the database.
+/// This function creates a new MetaVirtualMachineEntry with the provided parameters and inserts it into the database.
 /// The status is set to "ACTIVE" and timestamps are set to the current time.
 ///
 /// # Arguments
-/// * `meta_instance_uuid` - The unique identifier for the meta instance
-/// * `instance_name` - The name of the meta instance
-/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this instance
-/// * `proxy_uuid` - The UUID of the proxy associated with this instance
+/// * `meta_virtual_machine_uuid` - The unique identifier for the meta virtual_machine
+/// * `virtual_machine_name` - The name of the meta virtual_machine
+/// * `sakura_host_uuid` - The UUID of the Sakura host associated with this virtual_machine
+/// * `proxy_uuid` - The UUID of the proxy associated with this virtual_machine
 /// * `context` - The user context containing information about the user and project
 ///
 /// # Returns
 /// A QueryResult indicating the number of rows affected
-pub fn add_new_meta_instance(
-    meta_instance_uuid: &Uuid,
-    instance_name: &str,
+pub fn add_new_meta_virtual_machine(
+    meta_virtual_machine_uuid: &Uuid,
+    virtual_machine_name: &str,
     sakura_host_uuid: &Uuid,
     proxy_uuid: &Uuid,
     context: &UserContext,
 ) -> QueryResult<usize> {
-    let meta_instance = MetaInstanceEntry {
-        uuid: meta_instance_uuid.to_string().clone(),
-        name: instance_name.to_string().clone(),
+    let meta_virtual_machine = MetaVirtualMachineEntry {
+        uuid: meta_virtual_machine_uuid.to_string().clone(),
+        name: virtual_machine_name.to_string().clone(),
         sakura_host_uuid: sakura_host_uuid.to_string().clone(),
         proxy_uuid: proxy_uuid.to_string().clone(),
         owner_id: context.user_id.clone(),
@@ -127,47 +127,49 @@ pub fn add_new_meta_instance(
         deleted_by: None,
     };
 
-    add_meta_instance(&meta_instance)
+    add_meta_virtual_machine(&meta_virtual_machine)
 }
 
-/// Adds a meta instance to the database.
+/// Adds a meta virtual_machine to the database.
 ///
-/// This is a helper function that performs the actual insertion of a MetaInstanceEntry into the database.
+/// This is a helper function that performs the actual insertion of a MetaVirtualMachineEntry into the database.
 ///
 /// # Arguments
-/// * `meta_instance` - The MetaInstanceEntry to be inserted
+/// * `meta_virtual_machine` - The MetaVirtualMachineEntry to be inserted
 ///
 /// # Returns
 /// A QueryResult indicating the number of rows affected
-pub fn add_meta_instance(meta_instance: &MetaInstanceEntry) -> QueryResult<usize> {
+pub fn add_meta_virtual_machine(
+    meta_virtual_machine: &MetaVirtualMachineEntry,
+) -> QueryResult<usize> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
-    diesel::insert_into(meta_instances)
-        .values(meta_instance)
+    use self::meta_virtual_machines::dsl::*;
+    diesel::insert_into(meta_virtual_machines)
+        .values(meta_virtual_machine)
         .execute(&mut *conn)
 }
 
-/// Retrieves a meta instance from the database.
+/// Retrieves a meta virtual_machine from the database.
 ///
-/// This function queries the database for a meta instance with the specified UUID and checks the user's permissions.
-/// Only active instances are returned, and the query is filtered based on the user's role and project membership.
+/// This function queries the database for a meta virtual_machine with the specified UUID and checks the user's permissions.
+/// Only active virtual_machines are returned, and the query is filtered based on the user's role and project membership.
 ///
 /// # Arguments
-/// * `meta_instance_uuid` - The UUID of the meta instance to retrieve
+/// * `meta_virtual_machine_uuid` - The UUID of the meta virtual_machine to retrieve
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
-/// A Result containing the MetaInstanceEntry if found, or a DbError if not found or an error occurs
-pub fn get_meta_instance(
-    meta_instance_uuid: &Uuid,
+/// A Result containing the MetaVirtualMachineEntry if found, or a DbError if not found or an error occurs
+pub fn get_meta_virtual_machine(
+    meta_virtual_machine_uuid: &Uuid,
     context: &UserContext,
-) -> Result<MetaInstanceEntry, enums::DbError> {
+) -> Result<MetaVirtualMachineEntry, enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
+    use self::meta_virtual_machines::dsl::*;
 
-    let mut query = meta_instances
+    let mut query = meta_virtual_machines
         .filter(
-            uuid.eq(meta_instance_uuid.to_string())
+            uuid.eq(meta_virtual_machine_uuid.to_string())
                 .and(status.eq("ACTIVE")),
         )
         .into_boxed();
@@ -181,10 +183,10 @@ pub fn get_meta_instance(
     }
 
     match query
-        .select(MetaInstanceEntry::as_select())
-        .first::<MetaInstanceEntry>(&mut *conn)
+        .select(MetaVirtualMachineEntry::as_select())
+        .first::<MetaVirtualMachineEntry>(&mut *conn)
     {
-        Ok(meta_instance) => Ok(meta_instance),
+        Ok(meta_virtual_machine) => Ok(meta_virtual_machine),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
         Err(e) => {
             log::error!("Database-error: {e:?}");
@@ -193,22 +195,26 @@ pub fn get_meta_instance(
     }
 }
 
-/// Lists all meta instances that the user has access to.
+/// Lists all meta virtual_machines that the user has access to.
 ///
-/// This function retrieves all active meta instances and applies permission-based filtering.
+/// This function retrieves all active meta virtual_machines and applies permission-based filtering.
 /// The results are filtered based on the user's role and project membership.
 ///
 /// # Arguments
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
-/// A QueryResult containing a vector of MetaInstanceEntry objects
+/// A QueryResult containing a vector of MetaVirtualMachineEntry objects
 #[allow(dead_code)]
-pub fn list_meta_instances(context: &UserContext) -> QueryResult<Vec<MetaInstanceEntry>> {
+pub fn list_meta_virtual_machines(
+    context: &UserContext,
+) -> QueryResult<Vec<MetaVirtualMachineEntry>> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
+    use self::meta_virtual_machines::dsl::*;
 
-    let mut query = meta_instances.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = meta_virtual_machines
+        .filter(status.eq("ACTIVE"))
+        .into_boxed();
 
     // Apply permission-based filtering
     if context.is_admin != true.to_string() {
@@ -219,25 +225,27 @@ pub fn list_meta_instances(context: &UserContext) -> QueryResult<Vec<MetaInstanc
     }
 
     query
-        .select(MetaInstanceEntry::as_select())
+        .select(MetaVirtualMachineEntry::as_select())
         .load(&mut *conn)
 }
 
-/// Counts the number of meta instances that the user has access to.
+/// Counts the number of meta virtual_machines that the user has access to.
 ///
-/// This function counts all active meta instances and applies permission-based filtering.
+/// This function counts all active meta virtual_machines and applies permission-based filtering.
 /// The count is filtered based on the user's role and project membership.
 ///
 /// # Arguments
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
-/// A QueryResult containing the count of meta instances as an i64
-pub fn count_meta_instances(context: &UserContext) -> QueryResult<i64> {
+/// A QueryResult containing the count of meta virtual_machines as an i64
+pub fn count_meta_virtual_machines(context: &UserContext) -> QueryResult<i64> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
+    use self::meta_virtual_machines::dsl::*;
 
-    let mut query = meta_instances.filter(status.eq("ACTIVE")).into_boxed();
+    let mut query = meta_virtual_machines
+        .filter(status.eq("ACTIVE"))
+        .into_boxed();
 
     // Apply permission-based filtering
     query = query.filter(project_id.eq(context.project_id.clone()));
@@ -246,26 +254,30 @@ pub fn count_meta_instances(context: &UserContext) -> QueryResult<i64> {
     query.select(count_star()).first::<i64>(&mut *conn)
 }
 
-/// Force deletes a meta instance from the database.
+/// Force deletes a meta virtual_machine from the database.
 ///
-/// This function marks a meta instance as deleted without checking permissions.
+/// This function marks a meta virtual_machine as deleted without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Arguments
-/// * `meta_instance_uuid` - The UUID of the meta instance to delete
+/// * `meta_virtual_machine_uuid` - The UUID of the meta virtual_machine to delete
 ///
 /// # Returns
 /// A Result indicating success or an error
-pub fn force_delete_meta_instance(meta_instance_uuid: &Uuid) -> Result<(), enums::DbError> {
+pub fn force_delete_meta_virtual_machine(
+    meta_virtual_machine_uuid: &Uuid,
+) -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
-    match diesel::update(meta_instances.filter(uuid.eq(meta_instance_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq("HOST_INIT"),
-        ))
-        .execute(&mut *conn)
+    use self::meta_virtual_machines::dsl::*;
+    match diesel::update(
+        meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
+    )
+    .set((
+        status.eq("DELETED"),
+        deleted_at.eq(Utc::now().to_rfc3339()),
+        deleted_by.eq("HOST_INIT"),
+    ))
+    .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -276,33 +288,35 @@ pub fn force_delete_meta_instance(meta_instance_uuid: &Uuid) -> Result<(), enums
     }
 }
 
-/// Deletes a meta instance from the database.
+/// Deletes a meta virtual_machine from the database.
 ///
-/// This function marks a meta instance as deleted after verifying that the user has permission to delete it.
-/// It first checks if the instance exists and if the user has the necessary permissions.
+/// This function marks a meta virtual_machine as deleted after verifying that the user has permission to delete it.
+/// It first checks if the virtual_machine exists and if the user has the necessary permissions.
 ///
 /// # Arguments
-/// * `meta_instance_uuid` - The UUID of the meta instance to delete
+/// * `meta_virtual_machine_uuid` - The UUID of the meta virtual_machine to delete
 /// * `context` - The user context containing information about the user and their permissions
 ///
 /// # Returns
 /// A Result indicating success or an error
-pub fn delete_meta_instance(
-    meta_instance_uuid: &Uuid,
+pub fn delete_meta_virtual_machine(
+    meta_virtual_machine_uuid: &Uuid,
     context: &UserContext,
 ) -> Result<(), enums::DbError> {
-    // Verify the meta instance exists and the user has permission to delete it
-    get_meta_instance(meta_instance_uuid, context)?;
+    // Verify the meta virtual_machine exists and the user has permission to delete it
+    get_meta_virtual_machine(meta_virtual_machine_uuid, context)?;
 
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
-    match diesel::update(meta_instances.filter(uuid.eq(meta_instance_uuid.to_string())))
-        .set((
-            status.eq("DELETED"),
-            deleted_at.eq(Utc::now().to_rfc3339()),
-            deleted_by.eq(context.user_id.clone()),
-        ))
-        .execute(&mut *conn)
+    use self::meta_virtual_machines::dsl::*;
+    match diesel::update(
+        meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
+    )
+    .set((
+        status.eq("DELETED"),
+        deleted_at.eq(Utc::now().to_rfc3339()),
+        deleted_by.eq(context.user_id.clone()),
+    ))
+    .execute(&mut *conn)
     {
         Ok(_) => Ok(()),
         Err(diesel::result::Error::NotFound) => Err(enums::DbError::NotFound),
@@ -313,18 +327,18 @@ pub fn delete_meta_instance(
     }
 }
 
-/// Deletes all meta instances from the database.
+/// Deletes all meta virtual_machines from the database.
 ///
-/// This function marks all active meta instances as deleted without checking permissions.
+/// This function marks all active meta virtual_machines as deleted without checking permissions.
 /// It's intended for system-level operations where permission checks are not required.
 ///
 /// # Returns
 /// A Result indicating success or an error
 #[allow(dead_code)]
-pub fn delete_all_meta_instance() -> Result<(), enums::DbError> {
+pub fn delete_all_meta_virtual_machine() -> Result<(), enums::DbError> {
     let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-    use self::meta_instances::dsl::*;
-    match diesel::update(meta_instances.filter(status.eq("ACTIVE")))
+    use self::meta_virtual_machines::dsl::*;
+    match diesel::update(meta_virtual_machines.filter(status.eq("ACTIVE")))
         .set((
             status.eq("DELETED"),
             deleted_at.eq(Utc::now().to_rfc3339()),
@@ -346,19 +360,21 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
-    fn hard_delete_meta_instance(meta_instance_uuid: &Uuid) {
-        use self::meta_instances::dsl::*;
+    fn hard_delete_meta_virtual_machine(meta_virtual_machine_uuid: &Uuid) {
+        use self::meta_virtual_machines::dsl::*;
         let mut conn = db_handle::DB_CONN.lock().expect("mutex poisoned");
-        let _ = diesel::delete(meta_instances.filter(uuid.eq(meta_instance_uuid.to_string())))
-            .execute(&mut *conn);
+        let _ = diesel::delete(
+            meta_virtual_machines.filter(uuid.eq(meta_virtual_machine_uuid.to_string())),
+        )
+        .execute(&mut *conn);
     }
 
     #[test]
     #[serial]
-    fn test_add_get_meta_instance() {
-        let _ = init_meta_instance_table();
+    fn test_add_get_meta_virtual_machine() {
+        let _ = init_meta_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
-        let name = "test-instance".to_string();
+        let name = "test-virtual_machine".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -372,7 +388,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let meta_instance = MetaInstanceEntry {
+        let meta_virtual_machine = MetaVirtualMachineEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -388,40 +404,67 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_meta_instance(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid1);
 
-        add_meta_instance(&meta_instance).unwrap();
-        match get_meta_instance(&uuid1, &context) {
-            Ok(retrieved_meta_instance) => {
-                assert_eq!(retrieved_meta_instance.uuid, meta_instance.uuid);
-                assert_eq!(retrieved_meta_instance.proxy_uuid, meta_instance.proxy_uuid);
+        add_meta_virtual_machine(&meta_virtual_machine).unwrap();
+        match get_meta_virtual_machine(&uuid1, &context) {
+            Ok(retrieved_meta_virtual_machine) => {
                 assert_eq!(
-                    retrieved_meta_instance.sakura_host_uuid,
-                    meta_instance.sakura_host_uuid
+                    retrieved_meta_virtual_machine.uuid,
+                    meta_virtual_machine.uuid
                 );
-                assert_eq!(retrieved_meta_instance.owner_id, meta_instance.owner_id);
-                assert_eq!(retrieved_meta_instance.project_id, meta_instance.project_id);
-                assert_eq!(retrieved_meta_instance.status, meta_instance.status);
-                assert_eq!(retrieved_meta_instance.created_by, meta_instance.created_by);
-                assert_eq!(retrieved_meta_instance.updated_by, meta_instance.updated_by);
-                assert_eq!(retrieved_meta_instance.deleted_at, meta_instance.deleted_at);
-                assert_eq!(retrieved_meta_instance.deleted_by, meta_instance.deleted_by);
+                assert_eq!(
+                    retrieved_meta_virtual_machine.proxy_uuid,
+                    meta_virtual_machine.proxy_uuid
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.sakura_host_uuid,
+                    meta_virtual_machine.sakura_host_uuid
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.owner_id,
+                    meta_virtual_machine.owner_id
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.project_id,
+                    meta_virtual_machine.project_id
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.status,
+                    meta_virtual_machine.status
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.created_by,
+                    meta_virtual_machine.created_by
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.updated_by,
+                    meta_virtual_machine.updated_by
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.deleted_at,
+                    meta_virtual_machine.deleted_at
+                );
+                assert_eq!(
+                    retrieved_meta_virtual_machine.deleted_by,
+                    meta_virtual_machine.deleted_by
+                );
             }
             Err(_) => {
                 assert_eq!(true, false);
             }
         };
 
-        hard_delete_meta_instance(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid1);
     }
 
     #[test]
     #[serial]
-    fn test_list_meta_instances() {
-        let _ = init_meta_instance_table();
+    fn test_list_meta_virtual_machines() {
+        let _ = init_meta_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
-        let name = "test-instance".to_string();
+        let name = "test-virtual_machine".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -435,7 +478,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let meta_instance1 = MetaInstanceEntry {
+        let meta_virtual_machine1 = MetaVirtualMachineEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -451,7 +494,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let meta_instance2 = MetaInstanceEntry {
+        let meta_virtual_machine2 = MetaVirtualMachineEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -467,23 +510,23 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
 
-        add_meta_instance(&meta_instance1).unwrap();
-        add_meta_instance(&meta_instance2).unwrap();
-        let meta_instances = list_meta_instances(&context).unwrap();
-        assert_eq!(meta_instances.len(), 1);
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
+        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
+        let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
+        assert_eq!(meta_virtual_machines.len(), 1);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
     }
 
     #[test]
     #[serial]
-    fn test_delete_meta_instance() {
-        let _ = init_meta_instance_table();
+    fn test_delete_meta_virtual_machine() {
+        let _ = init_meta_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
-        let name = "test-instance".to_string();
+        let name = "test-virtual_machine".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -497,7 +540,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let meta_instance = MetaInstanceEntry {
+        let meta_virtual_machine = MetaVirtualMachineEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -513,22 +556,22 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_meta_instance(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid1);
 
-        add_meta_instance(&meta_instance).unwrap();
-        let _ = delete_meta_instance(&uuid1, &context);
-        let result = get_meta_instance(&uuid1, &context);
+        add_meta_virtual_machine(&meta_virtual_machine).unwrap();
+        let _ = delete_meta_virtual_machine(&uuid1, &context);
+        let result = get_meta_virtual_machine(&uuid1, &context);
         assert!(result.is_err());
     }
 
     #[test]
     #[serial]
-    fn test_count_meta_instances() {
-        let _ = init_meta_instance_table();
+    fn test_count_meta_virtual_machines() {
+        let _ = init_meta_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let name = "test-instance".to_string();
+        let name = "test-virtual_machine".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
@@ -542,7 +585,7 @@ mod tests {
             is_project_admin: false.to_string(),
         };
 
-        let meta_instance1 = MetaInstanceEntry {
+        let meta_virtual_machine1 = MetaVirtualMachineEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -558,7 +601,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let meta_instance2 = MetaInstanceEntry {
+        let meta_virtual_machine2 = MetaVirtualMachineEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -574,7 +617,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let meta_instance3 = MetaInstanceEntry {
+        let meta_virtual_machine3 = MetaVirtualMachineEntry {
             uuid: uuid3.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -590,34 +633,34 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
-        hard_delete_meta_instance(&uuid3);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
+        hard_delete_meta_virtual_machine(&uuid3);
 
-        add_meta_instance(&meta_instance1).unwrap();
-        add_meta_instance(&meta_instance2).unwrap();
-        add_meta_instance(&meta_instance3).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine3).unwrap();
 
-        let number = count_meta_instances(&context).unwrap();
+        let number = count_meta_virtual_machines(&context).unwrap();
         assert_eq!(number, 3);
 
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
-        hard_delete_meta_instance(&uuid3);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
+        hard_delete_meta_virtual_machine(&uuid3);
     }
 
     #[test]
     #[serial]
-    fn test_meta_instances_permissions() {
-        let _ = init_meta_instance_table();
+    fn test_meta_virtual_machines_permissions() {
+        let _ = init_meta_virtual_machine_table();
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let uuid3 = Uuid::new_v4();
-        let name = "test-instance".to_string();
+        let name = "test-virtual_machine".to_string();
         let sakura_host_uuid1 = Uuid::new_v4();
         let proxy_uuid1 = Uuid::new_v4();
 
-        let meta_instance1 = MetaInstanceEntry {
+        let meta_virtual_machine1 = MetaVirtualMachineEntry {
             uuid: uuid1.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -633,7 +676,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let meta_instance2 = MetaInstanceEntry {
+        let meta_virtual_machine2 = MetaVirtualMachineEntry {
             uuid: uuid2.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -649,7 +692,7 @@ mod tests {
             deleted_by: None,
         };
 
-        let meta_instance3 = MetaInstanceEntry {
+        let meta_virtual_machine3 = MetaVirtualMachineEntry {
             uuid: uuid3.to_string(),
             name: name.clone(),
             sakura_host_uuid: sakura_host_uuid1.to_string(),
@@ -665,13 +708,13 @@ mod tests {
             deleted_by: None,
         };
 
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
-        hard_delete_meta_instance(&uuid3);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
+        hard_delete_meta_virtual_machine(&uuid3);
 
-        add_meta_instance(&meta_instance1).unwrap();
-        add_meta_instance(&meta_instance2).unwrap();
-        add_meta_instance(&meta_instance3).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine1).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine2).unwrap();
+        add_meta_virtual_machine(&meta_virtual_machine3).unwrap();
 
         // list-test normal user
         let context = UserContext {
@@ -681,8 +724,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        let meta_instances = list_meta_instances(&context).unwrap();
-        assert_eq!(meta_instances.len(), 1);
+        let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
+        assert_eq!(meta_virtual_machines.len(), 1);
 
         // list-test project-admin
         let context = UserContext {
@@ -692,8 +735,8 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: true.to_string(),
         };
-        let meta_instances = list_meta_instances(&context).unwrap();
-        assert_eq!(meta_instances.len(), 2);
+        let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
+        assert_eq!(meta_virtual_machines.len(), 2);
 
         // list-test admin
         let context = UserContext {
@@ -703,8 +746,8 @@ mod tests {
             is_admin: true.to_string(),
             is_project_admin: false.to_string(),
         };
-        let meta_instances = list_meta_instances(&context).unwrap();
-        assert_eq!(meta_instances.len(), 3);
+        let meta_virtual_machines = list_meta_virtual_machines(&context).unwrap();
+        assert_eq!(meta_virtual_machines.len(), 3);
 
         // get-test normal user
         let context = UserContext {
@@ -714,9 +757,9 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        match get_meta_instance(&uuid1, &context) {
-            Ok(retrieved_meta_instance) => {
-                assert_eq!(retrieved_meta_instance.uuid, uuid1.to_string());
+        match get_meta_virtual_machine(&uuid1, &context) {
+            Ok(retrieved_meta_virtual_machine) => {
+                assert_eq!(retrieved_meta_virtual_machine.uuid, uuid1.to_string());
             }
             Err(_) => {
                 assert_eq!(true, false);
@@ -731,7 +774,7 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if get_meta_instance(&uuid3, &context).is_ok() {
+        if get_meta_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
@@ -743,12 +786,12 @@ mod tests {
             is_admin: false.to_string(),
             is_project_admin: false.to_string(),
         };
-        if delete_meta_instance(&uuid3, &context).is_ok() {
+        if delete_meta_virtual_machine(&uuid3, &context).is_ok() {
             assert_eq!(true, false);
         };
 
-        hard_delete_meta_instance(&uuid1);
-        hard_delete_meta_instance(&uuid2);
-        hard_delete_meta_instance(&uuid3);
+        hard_delete_meta_virtual_machine(&uuid1);
+        hard_delete_meta_virtual_machine(&uuid2);
+        hard_delete_meta_virtual_machine(&uuid3);
     }
 }

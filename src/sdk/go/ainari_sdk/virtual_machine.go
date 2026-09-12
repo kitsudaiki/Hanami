@@ -24,29 +24,29 @@ import (
 	"fmt"
 )
 
-func CreateInstance(context AccessContext, name, template string) (map[string]interface{}, error) {
-	path := "v1alpha/instance"
+func CreateVirtualMachine(context AccessContext, name string) (map[string]interface{}, error) {
+	path := "v1alpha/virtual_machine"
 	jsonBody := map[string]interface{}{
 		"name":     name,
-		"template": template,
+		"template": "asfasdfasdf",
 	}
 	return SendPost(context, context.HanamiAddress, path, jsonBody)
 }
 
-func GetInstance(context AccessContext, instanceUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/instance/%s", instanceUuid)
+func GetVirtualMachine(context AccessContext, virtual_machineUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s", virtual_machineUuid)
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func ListInstance(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/instance"
+func ListVirtualMachine(context AccessContext) (map[string]interface{}, error) {
+	path := "v1alpha/virtual_machine"
 	vars := map[string]interface{}{}
 	return SendGet(context, context.HanamiAddress, path, vars)
 }
 
-func DeleteInstance(context AccessContext, instanceUuid string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/instance/%s", instanceUuid)
+func DeleteVirtualMachine(context AccessContext, virtual_machineUuid string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/virtual_machine/%s", virtual_machineUuid)
 	vars := map[string]interface{}{}
 	return SendDelete(context, context.HanamiAddress, path, vars)
 }

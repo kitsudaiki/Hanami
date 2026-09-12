@@ -65,7 +65,7 @@ pub struct Ports {
     pub max_port: u16,
 }
 
-/// Global singleton config instance
+/// Global singleton config virtual_machine
 ///
 /// This is a lazy-initialized global configuration that reads from
 /// `/etc/ainari/torii.toml` file. The configuration is loaded only once
@@ -74,10 +74,14 @@ pub struct Ports {
 /// # Panics
 /// This will panic if the configuration file cannot be read or parsed.
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let file_path = "/etc/ainari/torii.toml";
+    let file_path = match env::var("CONFIG_FILE") {
+        Ok(value) => value,
+        Err(_) => "/etc/ainari/torii.toml".to_owned(),
+    };
+
     log::debug!("read config '{file_path}'");
 
-    match fs::read_to_string(file_path) {
+    match fs::read_to_string(file_path.clone()) {
         Ok(content) => {
             log::debug!("successfully read config-file '{file_path}'");
             // Attempt to parse the TOML content into our Config struct

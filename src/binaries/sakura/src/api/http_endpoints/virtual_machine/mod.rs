@@ -14,11 +14,11 @@
 
 pub mod checkpoint_restore_v1_0;
 pub mod checkpoint_save_v1_0;
-pub mod create_instance_v1_0;
-pub mod delete_instance_internal_v1_0;
-pub mod get_instance_internal_v1_0;
-pub mod list_instance_internal_v1_0;
-pub mod reserve_instance_internal_v1_0;
+pub mod create_virtual_machine_v1_0;
+pub mod delete_virtual_machine_internal_v1_0;
+pub mod get_virtual_machine_internal_v1_0;
+pub mod list_virtual_machine_internal_v1_0;
+pub mod reserve_virtual_machine_internal_v1_0;
 
 use std::fs;
 use std::str::FromStr;

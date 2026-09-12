@@ -14,46 +14,46 @@
 
 use uuid::Uuid;
 
-use ainari_api_structs::instance_structs::*;
+use ainari_api_structs::virtual_machine_structs::*;
 use ainari_common::error::AinariError;
 use ainari_common::secret::Secret;
 
 use crate::prepare_client;
 use crate::{handle_empty_response, handle_response};
 
-/// Creates a new instance in the Ainari system.
+/// Creates a new virtual_machine in the Ainari system.
 ///
 /// # Arguments
 ///
 /// * `sakura_address` - The base URL of the Ainari Sakura service.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `name` - Name of the instance to be created.
-/// * `template` - Template to be used for instance creation.
+/// * `name` - Name of the virtual_machine to be created.
+/// * `template` - Template to be used for virtual_machine creation.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
-/// A `Result` containing the created `InstanceResp` on success, or an `AinariError` on failure.
-pub async fn create_instance(
+/// A `Result` containing the created `VirtualMachineResp` on success, or an `AinariError` on failure.
+pub async fn create_virtual_machine(
     sakura_address: &String,
     token: &String,
     internal_api_key: &Secret,
     name: &str,
     template: &str,
     insecure_client: bool,
-) -> Result<InstanceResp, AinariError> {
+) -> Result<VirtualMachineResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/instance/internal");
+    let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
     // Create the request body with the provided name and template
-    let body = InstanceCreateReq {
+    let body = VirtualMachineCreateReq {
         template: template.to_owned(),
         name: name.to_owned(),
     };
     let json_str = serde_json::to_string(&body).unwrap();
 
-    // Send the POST request to create the instance
+    // Send the POST request to create the virtual_machine
     let response = client
         .post(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -63,34 +63,35 @@ pub async fn create_instance(
         .await;
 
     // Handle the response and return the result
-    let resp: Result<InstanceResp, AinariError> = handle_response(response, "instance", "").await;
+    let resp: Result<VirtualMachineResp, AinariError> =
+        handle_response(response, "virtual_machine", "").await;
     resp
 }
 
-/// Retrieves information about a specific instance from the Ainari system.
+/// Retrieves information about a specific virtual_machine from the Ainari system.
 ///
 /// # Arguments
 ///
 /// * `sakura_address` - The base URL of the Ainari Sakura service.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `instance_uuid` - UUID of the instance to retrieve.
+/// * `virtual_machine_uuid` - UUID of the virtual_machine to retrieve.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
-/// A `Result` containing the retrieved `InstanceResp` on success, or an `AinariError` on failure.
-pub async fn get_instance(
+/// A `Result` containing the retrieved `VirtualMachineResp` on success, or an `AinariError` on failure.
+pub async fn get_virtual_machine(
     sakura_address: &String,
     token: &String,
     internal_api_key: &Secret,
-    instance_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
     insecure_client: bool,
-) -> Result<InstanceResp, AinariError> {
+) -> Result<VirtualMachineResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/instance/{instance_uuid}/internal");
+    let url = format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/internal");
 
-    // Send the GET request to retrieve the instance information
+    // Send the GET request to retrieve the virtual_machine information
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -99,12 +100,16 @@ pub async fn get_instance(
         .await;
 
     // Handle the response and return the result
-    let resp: Result<InstanceResp, AinariError> =
-        handle_response(response, "instance", &instance_uuid.to_string()).await;
+    let resp: Result<VirtualMachineResp, AinariError> = handle_response(
+        response,
+        "virtual_machine",
+        &virtual_machine_uuid.to_string(),
+    )
+    .await;
     resp
 }
 
-/// Lists all instances available in the Ainari system.
+/// Lists all virtual_machines available in the Ainari system.
 ///
 /// # Arguments
 ///
@@ -115,17 +120,17 @@ pub async fn get_instance(
 ///
 /// # Returns
 ///
-/// A `Result` containing the list of instances as `InstanceListResp` on success, or an `AinariError` on failure.
-pub async fn list_instance(
+/// A `Result` containing the list of virtual_machines as `VirtualMachineListResp` on success, or an `AinariError` on failure.
+pub async fn list_virtual_machine(
     sakura_address: &String,
     token: &String,
     internal_api_key: &Secret,
     insecure_client: bool,
-) -> Result<InstanceListResp, AinariError> {
+) -> Result<VirtualMachineListResp, AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/instance/internal");
+    let url = format!("{sakura_address}/v1alpha/virtual_machine/internal");
 
-    // Send the GET request to list all instances
+    // Send the GET request to list all virtual_machines
     let response = client
         .get(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -134,35 +139,35 @@ pub async fn list_instance(
         .await;
 
     // Handle the response and return the result
-    let resp: Result<InstanceListResp, AinariError> =
-        handle_response(response, "instance", "").await;
+    let resp: Result<VirtualMachineListResp, AinariError> =
+        handle_response(response, "virtual_machine", "").await;
     resp
 }
 
-/// Deletes a specific instance from the Ainari system.
+/// Deletes a specific virtual_machine from the Ainari system.
 ///
 /// # Arguments
 ///
 /// * `sakura_address` - The base URL of the Ainari Sakura service.
 /// * `token` - Authentication token for the API.
 /// * `internal_api_key` - Internal API key for authorization.
-/// * `instance_uuid` - UUID of the instance to delete.
+/// * `virtual_machine_uuid` - UUID of the virtual_machine to delete.
 /// * `insecure_client` - Whether to use an insecure client (no TLS verification).
 ///
 /// # Returns
 ///
 /// A `Result` indicating success or failure. On success, returns `Ok(())`.
-pub async fn delete_instance(
+pub async fn delete_virtual_machine(
     sakura_address: &String,
     token: &String,
     internal_api_key: &Secret,
-    instance_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
     insecure_client: bool,
 ) -> Result<(), AinariError> {
     let client = prepare_client(sakura_address, insecure_client);
-    let url = format!("{sakura_address}/v1alpha/instance/{instance_uuid}/internal");
+    let url = format!("{sakura_address}/v1alpha/virtual_machine/{virtual_machine_uuid}/internal");
 
-    // Send the DELETE request to remove the instance
+    // Send the DELETE request to remove the virtual_machine
     let response = client
         .delete(url)
         .insert_header(("Authorization", format!("Bearer {}", token)))
@@ -171,5 +176,10 @@ pub async fn delete_instance(
         .await;
 
     // Handle the empty response and return the result
-    handle_empty_response(response, "instance", &instance_uuid.to_string()).await
+    handle_empty_response(
+        response,
+        "virtual_machine",
+        &virtual_machine_uuid.to_string(),
+    )
+    .await
 }

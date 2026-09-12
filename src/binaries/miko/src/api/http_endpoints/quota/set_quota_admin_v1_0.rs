@@ -47,8 +47,8 @@ pub async fn set_quota_admin(
         .map_err(|e| map_db_id_get_delete_error("quota", &quota_id, e))?;
 
     // update values to set
-    if body.max_instance != 0 {
-        current_quota.max_instance = body.max_instance;
+    if body.max_virtual_machine != 0 {
+        current_quota.max_virtual_machine = body.max_virtual_machine;
     }
     if body.max_dataset != 0 {
         current_quota.max_dataset = body.max_dataset;
@@ -72,7 +72,7 @@ pub async fn set_quota_admin(
     // update values in database
     quota_table::set_quota(
         &quota_id,
-        current_quota.max_instance,
+        current_quota.max_virtual_machine,
         current_quota.max_dataset,
         current_quota.max_checkpoint,
         current_quota.max_secret,
@@ -89,11 +89,12 @@ pub async fn set_quota_admin(
 
     let resp = QuotaResp {
         user_id: quota.id,
-        max_instance: quota.max_instance,
+        max_virtual_machine: quota.max_virtual_machine,
         max_dataset: quota.max_dataset,
         max_checkpoint: quota.max_checkpoint,
         max_secret: quota.max_secret,
         max_network: quota.max_network,
+        max_floating_ip: quota.max_floating_ip,
         max_taskqueue: quota.max_taskqueue,
         created_by: quota.created_by,
         created_at: quota.created_at,

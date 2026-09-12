@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod create_instance_v1_0;
-pub mod delete_instance_v1_0;
-pub mod get_instance_count_v1_0;
-pub mod get_instance_v1_0;
-pub mod list_instance_v1_0;
+pub mod create_virtual_machine_v1_0;
+pub mod delete_virtual_machine_v1_0;
+pub mod get_virtual_machine_count_v1_0;
+pub mod get_virtual_machine_v1_0;
+pub mod list_virtual_machine_v1_0;

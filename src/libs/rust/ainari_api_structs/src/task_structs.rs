@@ -26,7 +26,7 @@ use diesel::{AsExpression, FromSqlRow};
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, ApiComponent)]
 pub enum TaskResourceType {
-    Instance = 0,
+    VirtualMachine = 0,
     Image = 1,
     Volume = 2,
 }
@@ -34,7 +34,7 @@ pub enum TaskResourceType {
 impl fmt::Display for TaskResourceType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TaskResourceType::Instance => "Instance",
+            TaskResourceType::VirtualMachine => "VirtualMachine",
             TaskResourceType::Image => "Image",
             TaskResourceType::Volume => "Volume",
         };
@@ -47,7 +47,7 @@ impl FromStr for TaskResourceType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Instance" => Ok(TaskResourceType::Instance),
+            "VirtualMachine" => Ok(TaskResourceType::VirtualMachine),
             "Image" => Ok(TaskResourceType::Image),
             "Volume" => Ok(TaskResourceType::Volume),
             _ => Err(()),
@@ -59,8 +59,8 @@ impl FromStr for TaskResourceType {
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Varchar))]
 pub enum TaskType {
-    InstanceCreate = 0,
-    InstanceDelete = 1,
+    VirtualMachineCreate = 0,
+    VirtualMachineDelete = 1,
     CheckpointSave = 2,
     CheckpointRestore = 3,
 }
@@ -99,8 +99,8 @@ impl diesel::serialize::ToSql<diesel::sql_types::Varchar, diesel::sqlite::Sqlite
 impl fmt::Display for TaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TaskType::InstanceCreate => "InstanceCreateTask",
-            TaskType::InstanceDelete => "InstanceDeleteTask",
+            TaskType::VirtualMachineCreate => "VirtualMachineCreateTask",
+            TaskType::VirtualMachineDelete => "VirtualMachineDeleteTask",
             TaskType::CheckpointSave => "CheckpointSaveTask",
             TaskType::CheckpointRestore => "CheckpointRestoreTask",
         };
@@ -113,8 +113,8 @@ impl FromStr for TaskType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "InstanceCreateTask" => Ok(TaskType::InstanceCreate),
-            "InstanceDeleteTask" => Ok(TaskType::InstanceDelete),
+            "VirtualMachineCreateTask" => Ok(TaskType::VirtualMachineCreate),
+            "VirtualMachineDeleteTask" => Ok(TaskType::VirtualMachineDelete),
             "CheckpointSaveTask" => Ok(TaskType::CheckpointSave),
             "CheckpointRestoreTask" => Ok(TaskType::CheckpointRestore),
             _ => Err(()),

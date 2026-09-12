@@ -84,7 +84,7 @@ fn default_max_number_of_threads() -> usize {
     0
 }
 
-/// Global singleton config instance.
+/// Global singleton config virtual_machine.
 /// This is initialized once when first accessed and remains available throughout the program's lifetime.
 ///
 /// The configuration is loaded from a TOML file at "/etc/ainari/sakura.toml".

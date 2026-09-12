@@ -20,29 +20,29 @@ use validator::Validate;
 
 use crate::config;
 use crate::database::host_table;
-use crate::database::meta_instance_table;
+use crate::database::meta_virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
-use ainari_api_structs::instance_structs::*;
 use ainari_api_structs::user_context::UserContext;
+use ainari_api_structs::virtual_machine_structs::*;
 use ainari_clients::endpoints::*;
-use ainari_clients::instance as instance_clients;
 use ainari_clients::proxy as proxy_clients;
 use ainari_clients::quota::get_quota;
+use ainari_clients::virtual_machine as virtual_machine_clients;
 
 #[api_operation(
-    tag = "instance",
-    summary = "Create new instance",
-    description = r###"Create new instance based on a instance-template."###,
+    tag = "virtual_machine",
+    summary = "Create new virtual_machine",
+    description = r###"Create new virtual_machine based on a virtual_machine-template."###,
     error_code = 400,
     error_code = 401,
     error_code = 500
 )]
-pub async fn create_instance(
-    body: Json<InstanceCreateReq>,
+pub async fn create_virtual_machine(
+    body: Json<VirtualMachineCreateReq>,
     context: UserContext,
-) -> Result<CreatedJson<InstanceResp>, ErrorResponse> {
+) -> Result<CreatedJson<VirtualMachineResp>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
@@ -57,7 +57,7 @@ pub async fn create_instance(
 
     // check that there is at least one host
     if hosts.is_empty() {
-        log::error!("No hosts to schedule new instance.");
+        log::error!("No hosts to schedule new virtual_machine.");
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     }
 
@@ -70,8 +70,8 @@ pub async fn create_instance(
         return Err(ErrorResponse::InternalError("Internal Error".to_string()));
     };
 
-    // send request to the selected sakura-host to create a instance
-    let mut instance_resp = instance_clients::create_instance(
+    // send request to the selected sakura-host to create a virtual_machine
+    let mut virtual_machine_resp = virtual_machine_clients::create_virtual_machine(
         &selected_host.address,
         &context.token,
         &config::INTERNAL_API_KEY,
@@ -93,7 +93,7 @@ pub async fn create_instance(
         &endpoints.torii,
         &context.token,
         &config::INTERNAL_API_KEY,
-        &instance_resp.uuid,
+        &virtual_machine_resp.uuid,
         &selected_host.address,
         config::CONFIG.skip_tls_verification,
     )
@@ -101,15 +101,15 @@ pub async fn create_instance(
     .map_err(map_ainari_error_to_api_response)?;
 
     // set port-number for the response
-    instance_resp.torii_port = proxy_resp.port;
+    virtual_machine_resp.torii_port = proxy_resp.port;
 
     // parse uuid-string
     let sakura_uuid = convert_uuid(&selected_host.uuid)?;
 
-    // add new instance to database
-    let instance_uuid = instance_resp.uuid;
-    meta_instance_table::add_new_meta_instance(
-        &instance_uuid,
+    // add new virtual_machine to database
+    let virtual_machine_uuid = virtual_machine_resp.uuid;
+    meta_virtual_machine_table::add_new_meta_virtual_machine(
+        &virtual_machine_uuid,
         &body.name,
         &sakura_uuid,
         &proxy_resp.uuid,
@@ -117,18 +117,18 @@ pub async fn create_instance(
     )
     .map_err(|e| {
         log::error!(
-            "Failed to add instance with UUID '{instance_uuid}' to database with error: {e}."
+            "Failed to add virtual_machine with UUID '{virtual_machine_uuid}' to database with error: {e}."
         );
         ErrorResponse::InternalError("Internal Error".to_string())
     })?;
 
-    Ok(CreatedJson(instance_resp))
+    Ok(CreatedJson(virtual_machine_resp))
 }
 
-/// Asynchronously checks if the user's current number of meta_instances is within their quota limit.
+/// Asynchronously checks if the user's current number of meta_virtual_machines is within their quota limit.
 ///
 /// This function performs two main operations:
-/// 1. Counts the current number of meta_instances for the given user
+/// 1. Counts the current number of meta_virtual_machines for the given user
 /// 2. Retrieves the user's quota from the Miko endpoint and verifies if the quota is exceeded
 ///
 /// # Arguments
@@ -143,15 +143,15 @@ pub async fn create_instance(
 /// # Errors
 ///
 /// This function will return an error in the following cases:
-/// - Database error when counting meta_instances
+/// - Database error when counting meta_virtual_machines
 /// - Network error when communicating with the Miko endpoint
-/// - If the user has exceeded their meta_instance quota limit
+/// - If the user has exceeded their meta_virtual_machine quota limit
 async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
-    // Get the current number of meta_instances for the user from the database
+    // Get the current number of meta_virtual_machines for the user from the database
     // This count is used to compare against the user's quota limit
-    let current_number_of_meta_instances = meta_instance_table::count_meta_instances(context)
-        .map_err(|e| {
-            log::error!("Failed to count meta_instances in database.: {e}");
+    let current_number_of_meta_virtual_machines =
+        meta_virtual_machine_table::count_meta_virtual_machines(context).map_err(|e| {
+            log::error!("Failed to count meta_virtual_machines in database.: {e}");
             ErrorResponse::InternalError("Internal Error".to_string())
         })?;
 
@@ -167,14 +167,14 @@ async fn check_quota(context: &UserContext) -> Result<(), ErrorResponse> {
     .await
     .map_err(map_ainari_error_to_api_response)?;
 
-    // Convert the quota's maximum instance count to i64 for comparison
-    let max_number_of_meta_instances = quota.max_instance as i64;
+    // Convert the quota's maximum virtual_machine count to i64 for comparison
+    let max_number_of_meta_virtual_machines = quota.max_virtual_machine as i64;
 
     // Check if the user has already exceeded their quota
     // If exceeded, return a Conflict error response
-    if current_number_of_meta_instances as i64 >= max_number_of_meta_instances {
+    if current_number_of_meta_virtual_machines as i64 >= max_number_of_meta_virtual_machines {
         return Err(ErrorResponse::Conflict(
-            "Maximum number of meta_instances exceeded.".to_string(),
+            "Maximum number of meta_virtual_machines exceeded.".to_string(),
         ));
     }
 

@@ -17,7 +17,7 @@ use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
 use crate::config;
-use crate::database::instance_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::convert_uuid;
 use ainari_api_structs::host_structs::UuidList;
@@ -31,7 +31,7 @@ use ainari_common::error::AinariError;
 /// 1. Creates a Tokio runtime for asynchronous operations
 /// 2. Retrieves system endpoints from Miko
 /// 3. Gathers information about the host system
-/// 4. Collects UUIDs of deleted instances from the database
+/// 4. Collects UUIDs of deleted virtual_machines from the database
 /// 5. Registers the host with Hanami using the collected information
 ///
 /// # Errors
@@ -63,21 +63,21 @@ pub fn register_host() -> Result<(), AinariError> {
 
     log::debug!("read host-name: {host_name}");
 
-    // Retrieve list of deleted instances from the database
-    let deleted_instances = match instance_table::list_deleted_instances() {
-        Ok(instances) => instances,
+    // Retrieve list of deleted virtual_machines from the database
+    let deleted_virtual_machines = match virtual_machine_table::list_deleted_virtual_machines() {
+        Ok(virtual_machines) => virtual_machines,
         Err(e) => {
-            log::error!("Failed to get list of instances form database: '{e}'");
+            log::error!("Failed to get list of virtual_machines form database: '{e}'");
             return Err(AinariError::InternalError("Internal Error".to_string()));
         }
     };
 
-    // Prepare a list of UUIDs for deleted instances
+    // Prepare a list of UUIDs for deleted virtual_machines
     let mut resp = UuidList { list: Vec::new() };
 
-    // Convert each instance UUID to the required format
-    for instance in deleted_instances {
-        resp.list.push(instance.uuid);
+    // Convert each virtual_machine UUID to the required format
+    for virtual_machine in deleted_virtual_machines {
+        resp.list.push(virtual_machine.uuid);
     }
 
     // Register the host with Hanami service

@@ -18,11 +18,11 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::api::http_endpoints::instance::get_secret;
+use crate::api::http_endpoints::virtual_machine::get_secret;
 use crate::config;
-use crate::core::processing::tasks::{CheckpointSaveInfo, Task, TaskMeta, TaskVariant};
-use crate::database::instance_table;
+use crate::core::processing::tasks::{Task, TaskMeta, TaskVariant};
 use crate::database::task_table;
+use crate::database::virtual_machine_table;
 
 use ainari_api::common_functions::*;
 use ainari_api::errors::ErrorResponse;
@@ -34,7 +34,7 @@ use ainari_clients::endpoints::get_endpoints;
 #[api_operation(
     tag = "task",
     summary = "Create new checkpoint-task",
-    description = r###"Create new checkpoint-task for a instance"###,
+    description = r###"Create new checkpoint-task for a virtual_machine"###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
@@ -42,7 +42,7 @@ use ainari_clients::endpoints::get_endpoints;
 )]
 pub async fn checkpoint_save_task(
     body: Json<TaskCheckpointSaveReq>,
-    instance_uuid: Path<Uuid>,
+    virtual_machine_uuid: Path<Uuid>,
     context: UserContext,
 ) -> Result<CreatedJson<TaskResp>, ErrorResponse> {
     // validate incoming json
@@ -52,9 +52,9 @@ pub async fn checkpoint_save_task(
     let task_uuid = Uuid::new_v4();
     let task_type = TaskType::CheckpointSave;
 
-    // check if instance exist
-    instance_table::get_instance(&instance_uuid, &context)
-        .map_err(|e| map_db_uuid_get_delete_error("instance", &instance_uuid, e))?;
+    // check if virtual_machine exist
+    virtual_machine_table::get_virtual_machine(&virtual_machine_uuid, &context)
+        .map_err(|e| map_db_uuid_get_delete_error("virtual_machine", &virtual_machine_uuid, e))?;
 
     let endpoints = get_endpoints(&config::CONFIG.miko, config::CONFIG.skip_tls_verification)
         .await
@@ -74,25 +74,25 @@ pub async fn checkpoint_save_task(
     let secret = get_secret(&checkpoint_create_resp.secret_uuid, &context).await?;
 
     // prepare task-info
-    let info = CheckpointSaveInfo {
-        onsen_address: checkpoint_create_resp.onsen_address,
-        file_path: checkpoint_create_resp.file_path,
-        secret,
-    };
+    // let info = CheckpointSaveInfo {
+    //     onsen_address: checkpoint_create_resp.onsen_address,
+    //     file_path: checkpoint_create_resp.file_path,
+    //     secret,
+    // };
 
-    // create new task
-    let task = Task {
-        uuid: task_uuid,
-        resouce_uuid: instance_uuid.clone(),
-        resource_type: TaskResourceType::Instance,
-        name: body.name.clone(),
-        info: TaskVariant::CheckpointSave(info),
-        meta: TaskMeta::new(1, 1, 1, 0),
-    };
-    super::super::task::add_task(task, &task_type, &context)?;
+    // // create new task
+    // let task = Task {
+    //     uuid: task_uuid,
+    //     resouce_uuid: virtual_machine_uuid.clone(),
+    //     resource_type: TaskResourceType::VirtualMachine,
+    //     name: body.name.clone(),
+    //     info: TaskVariant::CheckpointSave(info),
+    //     meta: TaskMeta::new(1, 1, 1, 0),
+    // };
+    // super::super::task::add_task(task, &task_type, &context)?;
 
     // get new created task from database to get addtional information
-    let task_data = task_table::get_task(&task_uuid, &instance_uuid, &context)
+    let task_data = task_table::get_task(&task_uuid, &virtual_machine_uuid, &context)
         .map_err(|e| map_db_uuid_get_delete_error("task", &task_uuid, e))?;
 
     let resp = TaskResp {

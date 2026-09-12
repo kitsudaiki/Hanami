@@ -13,6 +13,6 @@
 // limitations under the License.
 
 pub mod floating_ip;
-pub mod instance;
 pub mod network;
 pub mod sakura_host;
+pub mod virtual_machine;

@@ -32,7 +32,7 @@ pub struct GatewayState {
     pub route_map: AyaHashMap<MapData, u32, RouteTargetPod>,
     pub fip_dnat_map: AyaHashMap<MapData, u32, u32>,
     pub fip_snat_map: AyaHashMap<MapData, u32, u32>,
-    pub bpf: Bpf, // Bpf instance kept in state for dynamic XDP attaching
+    pub bpf: Bpf, // Bpf virtual_machine kept in state for dynamic XDP attaching
     pub xdp_links: Vec<aya::programs::xdp::XdpLinkId>, // Keeps XDP attachments alive
 }
 

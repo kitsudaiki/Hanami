@@ -16,9 +16,9 @@ use apistos::web::{Scope, delete, get, post, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::floating_ip::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::route::*;
-use crate::api::http_endpoints::floating_ip::*;
 
 pub fn v1alpha_routes() -> Scope {
     scope("/v1alpha")

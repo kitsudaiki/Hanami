@@ -50,7 +50,7 @@ fn default_insecure_clients() -> bool {
     false
 }
 
-/// Global singleton configuration instance
+/// Global singleton configuration virtual_machine
 ///
 /// This lazy static variable holds the configuration for the Hanami service.
 /// It is initialized by reading from the configuration file at "/etc/ainari/hanami.toml".

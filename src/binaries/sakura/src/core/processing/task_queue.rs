@@ -103,13 +103,13 @@ mod tests {
 
     #[test]
     fn test_add_and_get() {
-        let instance_uuid = Uuid::new_v4();
+        let virtual_machine_uuid = Uuid::new_v4();
         let task_queue: Arc<Mutex<TaskQueue>> = Arc::new(Mutex::new(init_task_queue()));
         let mut queue = task_queue.lock().expect("mutex poisoned");
         let uuid1 = Uuid::new_v4();
         let uuid2 = Uuid::new_v4();
         let secret = Secret::from("asdf");
-        let resource_type = TaskResourceType::Instance;
+        let resource_type = TaskResourceType::VirtualMachine;
 
         let info1 = CheckpointSaveInfo {
             onsen_address: "127.0.0.1".to_string(),
@@ -124,7 +124,7 @@ mod tests {
 
         let task1 = Task {
             uuid: uuid1,
-            resouce_uuid: instance_uuid.clone(),
+            resouce_uuid: virtual_machine_uuid.clone(),
             resource_type: resource_type.clone(),
             name: "task1".to_string(),
             info: TaskVariant::CheckpointSave(info1),
@@ -132,7 +132,7 @@ mod tests {
         };
         let task2 = Task {
             uuid: uuid2,
-            resouce_uuid: instance_uuid.clone(),
+            resouce_uuid: virtual_machine_uuid.clone(),
             resource_type: resource_type.clone(),
             name: "task2".to_string(),
             info: TaskVariant::CheckpointSave(info2),

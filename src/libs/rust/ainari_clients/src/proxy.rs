@@ -26,13 +26,13 @@ use crate::{handle_empty_response, handle_response};
 Creates a new proxy in the Ainari system.
 
 This function communicates with the Torii endpoint to create a proxy that
-will forward traffic to the specified target address for a given instance.
+will forward traffic to the specified target address for a given virtual_machine.
 
 # Arguments
 - `torii_endpoint`: The endpoint configuration for the Torii service
 - `token`: Authentication token for accessing the API
 - `internal_api_key`: Internal API key for privileged operations
-- `instance_uuid`: UUID of the instance that will use this proxy
+- `virtual_machine_uuid`: UUID of the virtual_machine that will use this proxy
 - `target_address`: The address to which the proxy should forward traffic
 - `insecure_client`: Whether to use an insecure (HTTP) client or secure (HTTPS) client
 
@@ -43,7 +43,7 @@ pub async fn create_proxy(
     torii_endpoint: &ainari_config::Endpoint,
     token: &String,
     internal_api_key: &Secret,
-    instance_uuid: &Uuid,
+    virtual_machine_uuid: &Uuid,
     target_address: &str,
     insecure_client: bool,
 ) -> Result<ProxyResp, AinariError> {
@@ -57,7 +57,7 @@ pub async fn create_proxy(
     // Create the request body with the required parameters
     let body = ProxyCreateReq {
         target_address: target_address.to_owned(),
-        instance_uuid: *instance_uuid,
+        virtual_machine_uuid: *virtual_machine_uuid,
     };
     // Serialize the request body to JSON
     let json_str = serde_json::to_string(&body).unwrap();
