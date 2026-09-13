@@ -20,12 +20,12 @@ use log::LevelFilter;
 use tokio::process::Command;
 use tonic::{transport::Server, Request, Response, Status};
 
-pub mod neko_wrapper {
+pub mod root_wrapper {
     tonic::include_proto!("root_wrapper");
 }
 
-use neko_wrapper::neko_root_wrapper_server::{NekoRootWrapper, NekoRootWrapperServer};
-use neko_wrapper::{CommandRequest, CommandResponse};
+use root_wrapper::neko_root_wrapper_server::{NekoRootWrapper, NekoRootWrapperServer};
+use root_wrapper::{CommandRequest, CommandResponse};
 
 use crate::command_rules::COMMAND_RULES;
 

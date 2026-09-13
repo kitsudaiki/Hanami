@@ -258,12 +258,12 @@ async fn handle_vm_creation(
     _: &mut TaskMeta,
     task_info: &mut CloudHypervisorVirtualMachineCreateInfo,
 ) {
-    let root_disk_path = Some("/tmp/vm_test/ubuntu-24.04.raw".to_string());
-    let seed_disk_path = "/tmp/vm_test/seed.iso".to_string();
+    let root_disk_path = Some("/tmp/ubuntu-24.04.raw".to_string());
+    let seed_disk_path = "/tmp/seed.iso".to_string();
     let tap_device_name = "tap-vm".to_string();
     let mac_address = "02:00:00:00:00:42".to_string();
 
-    let ret = create_ch_virtual_machine(
+    let ret = match create_ch_virtual_machine(
         virtual_machine_uuid,
         task_info.number_of_cores,
         task_info.memory_size,
@@ -272,10 +272,11 @@ async fn handle_vm_creation(
         &tap_device_name,
         &mac_address,
     )
-    .await;
-    if ret.is_err() {
-        log::error!("fail");
-    }
+    .await
+    {
+        Ok(_) => return,
+        Err(e) =>  log::error!("fail: {:?}", e),
+    };
 }
 
 // /// Handles the task of saving a virtual_machine checkpoint.

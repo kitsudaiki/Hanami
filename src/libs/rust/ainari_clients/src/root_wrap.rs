@@ -12,32 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use neko_wrapper::root_wrapper_client::RootWrapperClient;
-use neko_wrapper::CommandRequest;
+use tonic::transport::Channel;
 
-use ainari_common::errors::*;
 
-pub mod wrapper {
+pub mod root_wrapper {
     tonic::include_proto!("root_wrapper");
 }
 
-pub async fn run_client() -> Result<(), AinariError> {
-    let mut client = RootWrapperClient::connect("http://127.0.0.1:54515")
-        .await
-        .map_err(|e| TestError::InternalError(e.to_string()))?;
+use root_wrapper::neko_root_wrapper_client::NekoRootWrapperClient;
+use root_wrapper::CommandRequest;
 
-    let req = tonic::Request::new(CommandRequest {
-        command: "apt-get".into(),
-        args: vec!["install".into(), "nginx".into()],
+use ainari_common::error::*;
+
+pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Channel>, AinariError> {
+    NekoRootWrapperClient::connect("http://127.0.0.1:54515")
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Connection to Neko-root-wrapper failed: {}", e)))
+}
+
+pub async fn run_root_cmd(
+    client: &mut NekoRootWrapperClient<Channel>,
+    cmd: &str,
+    args: &[&str],
+) -> Result<(), AinariError> {
+    let request = tonic::Request::new(CommandRequest {
+        command: cmd.to_string(),
+        args: args.iter().map(|s| s.to_string()).collect(),
     });
 
-    // 2. Execute (map tonic::Status to TestError)
     let response = client
-        .execute(req)
+        .execute(request)
         .await
-        .map_err(|e| TestError::InternalError(e.to_string()))?;
+        .map_err(|e| AinariError::InternalError(format!("gRPC Error from Neko: {}", e.message())))?
+        .into_inner();
 
-    println!("Response: {:?}", response.into_inner());
-
-    Ok(())
+    if response.success {
+        Ok(())
+    } else {
+        // Return stderr if available, otherwise fallback to the exit code
+        let err_msg = if !response.stderr.is_empty() {
+            response.stderr.trim().to_string()
+        } else {
+            format!("exit code {}", response.exit_code)
+        };
+        Err(AinariError::InternalError(err_msg))
+    }
 }

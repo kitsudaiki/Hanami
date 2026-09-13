@@ -1,6 +1,6 @@
 use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::{
-    ConsoleMode, CpusConfig, DiskConfig, MemoryConfig, NetConfig, PayloadConfig, SerialConfig,
+    ConsoleMode, CpusConfig, DiskConfig, MemoryConfig, NetConfig, PayloadConfig, ConsoleConfig, SerialConfig,
     VmConfig,
 };
 use cloud_hypervisor_client::socket_based_api_client;
@@ -8,9 +8,49 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
+
+use ainari_clients::root_wrap::*;
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VmHandle {
+    pub tap_name: String,
+    pub socket_path: String,
+    pub pid: u32,
+}
+
+
+async fn create_tap_device(name: &str, ip_cidr: Option<&str>) -> Result<(), AinariError> {
+    let mut neko_client = init_neko_root_wrapper_client().await?;
+
+    // create tap-device
+    run_root_cmd(&mut neko_client, "ip", &["tuntap", "add", "mode", "tap", name])
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Failed to create TAP: {}", e)))?;
+
+    // bring tap-device up
+    run_root_cmd(&mut neko_client, "ip", &["link", "set", name, "up"])
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Failed to bring TAP up: {}", e)))?;
+
+    // disable offloading
+    run_root_cmd(&mut neko_client, "ethtool", &["-K", name, "tx", "off", "rx", "off"])
+        .await
+        .map_err(|e| AinariError::InternalError(format!("Failed to disable offloading: {}", e)))?;
+
+    // assign IP CIDR to tap-device
+    if let Some(ip) = ip_cidr {
+        run_root_cmd(&mut neko_client, "ip", &["addr", "add", ip, "dev", name])
+            .await
+            .map_err(|e| AinariError::InternalError(format!("Failed to assign IP: {}", e)))?;
+    }
+
+    Ok(())
+}
 
 pub async fn create_ch_virtual_machine(
     uuid: &Uuid,
@@ -20,7 +60,9 @@ pub async fn create_ch_virtual_machine(
     seed_path: &String,
     tap_name: &String,
     mac_address: &String,
-) -> Result<(), AinariError> {
+) -> Result<VmHandle, AinariError> {
+
+    create_tap_device(tap_name, Some("192.168.100.1/24")).await?;
     log::info!("Start creation of VM {uuid}");
 
     let socket_path = format!("/tmp/cloud-hypervisor-{}.sock", uuid);
@@ -46,7 +88,7 @@ pub async fn create_ch_virtual_machine(
     let client = socket_based_api_client(&socket_path);
 
     let payload = PayloadConfig {
-        firmware: Some(String::from("/usr/local/share/CLOUDHV.fd")),
+        firmware: Some(String::from("/tmp/CLOUDHV.fd")),
         ..Default::default()
     };
 
@@ -64,7 +106,11 @@ pub async fn create_ch_virtual_machine(
             ..Default::default()
         }),
 
-        serial: Some(SerialConfig {
+        console: Some(ConsoleConfig {
+            mode: ConsoleMode::Null,
+            ..Default::default()
+        }),
+        serial: Some(SerialConfig {  // Note: Depending on your ch-api version, this may be SerialConfig or ConsoleConfig
             mode: ConsoleMode::File,
             file: Some(format!("/tmp/{}-serial.log", uuid)),
             ..Default::default()
@@ -110,6 +156,9 @@ pub async fn create_ch_virtual_machine(
         )));
     }
 
+    // Capture the PID before moving `child` into the spawned task
+    let vm_pid = child.id();
+
     tokio::spawn(async move {
         let _ = child
             .wait()
@@ -118,7 +167,48 @@ pub async fn create_ch_virtual_machine(
         Ok::<(), AinariError>(())
     });
 
+    // Create the handle
+    let handle = VmHandle {
+        tap_name: tap_name.clone(),
+        socket_path: socket_path.clone(),
+        pid: vm_pid,
+    };
+    
     log::info!("New VM {uuid} started");
 
-    Ok(())
+    Ok(handle)
 }
+
+
+// pub async fn delete_vm(handle: &VmHandle) -> HttpResponse {
+//     let client = socket_based_api_client(&handle.socket_path);
+
+//     // 1. Attempt graceful shutdown via the cloud-hypervisor API
+//     // Note: Method names depend on your specific OpenAPI client version.
+//     // It might be `shutdown_vm()`, `power_button()`, or `delete_vm()`.
+//     match client.shutdown_vm().await {
+//         Ok(_) => {
+//             println!("Gracefully shut down VM: {}", handle.tap_name);
+//         }
+//         Err(e) => {
+//             eprintln!("API shutdown failed for {}: {:?}. Forcing kill...", handle.tap_name, e);
+            
+//             // 2. Fallback: Force kill the process if the API is unresponsive
+//             if let Some(pid) = handle.pid {
+//                 unsafe {
+//                     // Requires `libc` crate: Sends SIGKILL to the process
+//                     libc::kill(pid as i32, libc::SIGKILL);
+//                 }
+//             }
+//         }
+//     }
+
+//     // 3. Clean up the socket file
+//     let _ = std::fs::remove_file(&handle.socket_path);
+    
+//     // 4. (Optional) Clean up the serial log file
+//     let serial_log = format!("/tmp/{}-serial.log", handle.tap_name);
+//     let _ = std::fs::remove_file(&serial_log);
+
+//     HttpResponse::Ok().body(format!("VM {} deleted", handle.tap_name))
+// }
