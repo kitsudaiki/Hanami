@@ -1,0 +1,19 @@
+syntax = "proto3";
+package root_wrapper;
+
+service NekoRootWrapper {
+    rpc Execute (CommandRequest) returns (CommandResponse);
+}
+
+message CommandRequest {
+    string command = 1;
+    repeated string args = 2;
+}
+
+message CommandResponse {
+    bool success = 1;
+    string stdout = 2;
+    string stderr = 3;
+    int32 exit_code = 4;
+    string error_message = 5;
+}

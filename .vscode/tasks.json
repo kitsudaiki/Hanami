@@ -149,6 +149,16 @@
             "kind": "build",
         },
         "presentation": { "reveal": "always", "focus": true, "panel": "shared" }
-      }
+      },
+      {
+        "label": "Run Neko",
+        "type": "shell",
+        "command": "cargo build --package neko && sudo -E RUST_BACKTRACE=full RUST_LOG=debug ${workspaceFolder}/target/debug/neko",
+        "problemMatcher": ["$rustc"],
+        "group": {
+            "kind": "build",
+        },
+        "presentation": { "reveal": "always", "focus": true, "panel": "shared" }
+      },
     ],
 }
