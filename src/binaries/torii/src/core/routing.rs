@@ -1,128 +1,168 @@
-// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
+//! Translation of route requests into the targets consumed by the eBPF maps.
+//!
+//! This is where the decision is made how a destination is reached: through the
+//! L2-in-UDP overlay, by handing the packet to the kernel for IPsec, or by
+//! delivering it locally on a TAP or the veth uplink.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use aya::maps::{HashMap as AyaHashMap, MapData};
-use aya::programs::{Xdp, XdpFlags};
-use aya::{Bpf, include_bytes_aligned};
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::sync::Arc;
-use tokio::signal;
-use tokio::sync::Mutex;
-use torii_common::RouteTarget;
-use uuid::Uuid;
+
+use torii_common::{ROUTE_ACTION_ENCAP, ROUTE_ACTION_KERNEL, ROUTE_ACTION_LOCAL, RouteTarget};
+
+use crate::core::crypto::install_block_policies;
+use crate::core::models::TapInfo;
+use crate::core::utils::{
+    get_arp_mac, get_ifindex, get_local_ip, get_mac_address, parse_mac, run_ip,
+};
 
 use ainari_api_structs::route_structs::*;
 
-// --- Application State ---
-pub struct GatewayState {
-    pub routes: HashMap<String, Route>,
-    pub floating_ips: HashMap<String, String>,
-    pub route_map: AyaHashMap<MapData, u32, RouteTargetPod>,
-    pub fip_dnat_map: AyaHashMap<MapData, u32, u32>,
-    pub fip_snat_map: AyaHashMap<MapData, u32, u32>,
-    pub bpf: Bpf, // Bpf virtual_machine kept in state for dynamic XDP attaching
-    pub xdp_links: Vec<aya::programs::xdp::XdpLinkId>, // Keeps XDP attachments alive
-}
-
-lazy_static::lazy_static! {
-    pub static ref ROUTE_HANDLER: Arc<Mutex<GatewayState>> = Arc::new(Mutex::new(init_routing()));
-}
-
-/// Retrieves the system index of a network interface.
+/// Determines the link layer next hop a locally delivered packet is addressed to.
 ///
-/// This function reads the `/sys/class/net/{name}/ifindex` file to resolve the
-/// numeric interface index used by the kernel and eBPF.
+/// The gateway acts as a real L3 hop for the VMs, so packets leaving a local
+/// interface must carry the MAC of whoever sits on the other end of that link.
+/// The address is taken from the first source that can provide it:
+///
+/// 1. an explicit `next_hop_mac` in the request
+/// 2. the VM registered with the target TAP device (the normal case)
+/// 3. an ARP lookup of `next_hop_ip`, or of `dest_ip` if none was given -
+///    only usable on numbered interfaces such as the veth uplink
 ///
 /// # Arguments
-/// * `name` - The name of the network interface (e.g., "eth0")
+/// * `req` - The route request that is being programmed
+/// * `taps` - Snapshot of the TAP devices managed by this gateway
 ///
 /// # Returns
-/// A `u32` representing the interface index, or 0 if not found
-fn get_ifindex(name: &str) -> u32 {
-    let path = format!("/sys/class/net/{}/ifindex", name);
-    std::fs::read_to_string(path)
-        .unwrap_or_else(|_| "0\n".to_string())
-        .trim()
-        .parse()
-        .unwrap_or(0)
-}
-
-pub fn init_routing() -> GatewayState {
-    let overlay_iface = std::env::var("OVERLAY_IFACE").unwrap_or_else(|_| "veth-gw".to_string());
-    let underlay_iface = std::env::var("UNDERLAY_IFACE").unwrap_or_else(|_| "eth0".to_string());
-
-    let mut bpf = Bpf::load(include_bytes_aligned!(concat!(env!("OUT_DIR"), "/torii"))).unwrap();
-
-    let route_map_data = bpf.take_map("ROUTE_MAP").expect("Missing ROUTE_MAP");
-    let route_map: AyaHashMap<_, u32, RouteTargetPod> =
-        AyaHashMap::try_from(route_map_data).unwrap();
-
-    let fip_dnat_map_data = bpf.take_map("FIP_DNAT_MAP").expect("Missing FIP_DNAT_MAP");
-    let fip_dnat_map: AyaHashMap<_, u32, u32> = AyaHashMap::try_from(fip_dnat_map_data).unwrap();
-
-    let fip_snat_map_data = bpf.take_map("FIP_SNAT_MAP").expect("Missing FIP_SNAT_MAP");
-    let fip_snat_map: AyaHashMap<_, u32, u32> = AyaHashMap::try_from(fip_snat_map_data).unwrap();
-
-    // STATIC eBPF ATTACHMENT (Safely skips if interface doesn't exist yet)
-    let overlay: &mut Xdp = bpf
-        .program_mut("overlay_ingress")
-        .unwrap()
-        .try_into()
-        .unwrap();
-    overlay.load().unwrap();
-    if get_ifindex(&overlay_iface) > 0 {
-        overlay.attach(&overlay_iface, XdpFlags::SKB_MODE).unwrap();
-        println!("Attached overlay_ingress to {}", overlay_iface);
-    } else {
-        println!(
-            "Waiting for dynamic TAP creation. Skipping initial overlay attach for {}",
-            overlay_iface
-        );
+/// A 6-byte MAC address, or all zeros when no next hop could be determined
+/// (in which case the datapath forwards the frame without rewriting L2)
+pub fn resolve_next_hop_mac(req: &RouteRequest, taps: &HashMap<String, TapInfo>) -> [u8; 6] {
+    if let Some(mac) = req.next_hop_mac.as_deref().and_then(parse_mac) {
+        return mac;
     }
 
-    let underlay: &mut Xdp = bpf
-        .program_mut("underlay_ingress")
-        .unwrap()
-        .try_into()
-        .unwrap();
-    underlay.load().unwrap();
-    if get_ifindex(&underlay_iface) > 0 {
-        underlay
-            .attach(&underlay_iface, XdpFlags::SKB_MODE)
-            .unwrap();
-        println!("Attached underlay_ingress to {}", underlay_iface);
-    } else {
-        println!("Warning: Underlay interface {} not found.", underlay_iface);
+    // TAP devices are unnumbered, so ARP is not an option here: the MAC of the
+    // attached VM is taken from the registration done by /interfaces/tap.
+    if let Some(info) = taps.get(&req.target_iface) {
+        return info.vm_mac.unwrap_or([0u8; 6]);
     }
 
-    let state = GatewayState {
-        routes: HashMap::new(),
-        floating_ips: HashMap::new(),
-        route_map,
-        fip_dnat_map,
-        fip_snat_map,
-        bpf,                   // Retain Bpf context for dynamic API attachments
-        xdp_links: Vec::new(), // Initialize storage
-    };
+    let probe = req
+        .next_hop_ip
+        .clone()
+        .filter(|ip| !ip.is_empty())
+        .unwrap_or_else(|| req.dest_ip.clone());
 
-    state
+    if !probe.is_empty() && probe != "0.0.0.0" {
+        let mac = get_arp_mac(&probe);
+        // get_arp_mac falls back to broadcast when resolution fails.
+        if mac != [0xff; 6] {
+            return mac;
+        }
+    }
+
+    [0u8; 6]
 }
 
-#[derive(Clone, Copy)]
-#[repr(transparent)]
-pub struct RouteTargetPod(pub RouteTarget);
+/// Translates a route request into the `RouteTarget` consumed by the eBPF maps.
+///
+/// Routes carrying a `gateway_ip` are programmed as tunnel routes (`action == 1`)
+/// and get the underlay addresses of the remote gateway attached. All other
+/// routes are local deliveries (`action == 0`) and get the link layer addresses
+/// of the outgoing interface and of its next hop, which is what keeps the TAP
+/// devices free of any IP configuration.
+///
+/// # Arguments
+/// * `req` - The route request to translate
+/// * `taps` - Snapshot of the TAP devices managed by this gateway
+///
+/// # Returns
+/// A `Result` holding the populated `RouteTarget`, or an error message
+pub fn build_route_target(
+    req: &RouteRequest,
+    taps: &HashMap<String, TapInfo>,
+) -> Result<RouteTarget, String> {
+    let ifindex = get_ifindex(&req.target_iface);
+    if ifindex == 0 {
+        return Err(format!("Interface {} not found", req.target_iface));
+    }
 
-#[allow(unsafe_attr_outside_unsafe)]
-unsafe impl aya::Pod for RouteTargetPod {}
+    let mut action = ROUTE_ACTION_LOCAL;
+    let mut encap_dst_ip = 0;
+    let mut encap_dst_mac = [0u8; 6];
+    let mut encap_src_ip = 0;
+    let mut encap_src_mac = [0u8; 6];
+    let mut l2_dst_mac = [0u8; 6];
+    let mut l2_src_mac = [0u8; 6];
+
+    if req.encrypted {
+        // IPsec protected destination. The packet leaves the eBPF datapath and
+        // is routed by the kernel, so the only thing to prepare here is the
+        // route towards the gateway that hosts the remote VM plus the policies
+        // that keep unprotected traffic from taking the same path.
+        action = ROUTE_ACTION_KERNEL;
+        if req.gateway_ip.is_empty() {
+            return Err(
+                "encrypted routes need the underlay address of the remote gateway in gateway_ip"
+                    .to_string(),
+            );
+        }
+        let dest = format!("{}/32", req.dest_ip);
+        run_ip(&[
+            "route",
+            "replace",
+            &dest,
+            "via",
+            &req.gateway_ip,
+            "dev",
+            &req.target_iface,
+        ])?;
+        install_block_policies(&req.dest_ip)?;
+    } else if !req.gateway_ip.is_empty() {
+        action = ROUTE_ACTION_ENCAP;
+        let dst_ip: Ipv4Addr = req
+            .gateway_ip
+            .parse()
+            .map_err(|_| "Invalid gateway_ip".to_string())?;
+        encap_dst_ip = u32::from(dst_ip);
+        encap_dst_mac = get_arp_mac(&req.gateway_ip);
+
+        let local_ip_str = get_local_ip("eth0").unwrap_or_else(|| "0.0.0.0".to_string());
+        let local_ip: Ipv4Addr = local_ip_str.parse().unwrap_or(Ipv4Addr::new(0, 0, 0, 0));
+        encap_src_ip = u32::from(local_ip);
+        encap_src_mac = get_mac_address("eth0");
+    } else {
+        // Local delivery: rewrite the frame onto the target link. The source
+        // becomes the router port itself, the destination its next hop.
+        l2_src_mac = match taps.get(&req.target_iface) {
+            Some(info) => info.tap_mac,
+            None => get_mac_address(&req.target_iface),
+        };
+        l2_dst_mac = resolve_next_hop_mac(req, taps);
+
+        // Without a next hop the frame keeps the MAC the sender used, which the
+        // receiving side will normally discard. Say so instead of silently
+        // programming a route that black-holes traffic.
+        if l2_dst_mac == [0u8; 6] {
+            println!(
+                "Warning: no link layer next hop for {} via {}. Frames will be forwarded \
+                 unmodified; pass next_hop_ip or next_hop_mac for this route.",
+                req.dest_ip, req.target_iface
+            );
+        }
+    }
+
+    Ok(RouteTarget {
+        action,
+        ifindex,
+        encap_dst_ip,
+        encap_dst_mac,
+        _pad1: [0; 2],
+        encap_src_ip,
+        encap_src_mac,
+        _pad2: [0; 2],
+        l2_dst_mac,
+        _pad3: [0; 2],
+        l2_src_mac,
+        _pad4: [0; 2],
+    })
+}

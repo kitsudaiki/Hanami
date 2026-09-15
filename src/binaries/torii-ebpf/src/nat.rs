@@ -1,29 +1,10 @@
-// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
+use crate::headers::{ArpHdr, Ipv4Hdr, TcpHdr, UdpHdr};
+use crate::maps::{FIP_DNAT_MAP, FIP_SNAT_MAP};
+use crate::utils::{csum_replace4, ipv4_checksum, ptr_at_mut};
 use aya_ebpf::programs::XdpContext;
-use network_types::{
-    eth::{EthHdr, EtherType},
-    icmp::IcmpHdr,
-    ip::IpProto,
-};
-
-use crate::{
-    headers::{ArpHdr, Ipv4Hdr, TcpHdr, UdpHdr},
-    maps::{FIP_DNAT_MAP, FIP_SNAT_MAP},
-    utils::{csum_replace4, ipv4_checksum, ptr_at_mut},
-};
+use network_types::eth::{EthHdr, EtherType};
+use network_types::icmp::IcmpHdr;
+use network_types::ip::IpProto;
 
 /// Applies Destination Network Address Translation (DNAT) to incoming traffic.
 ///
@@ -54,7 +35,7 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
             let mut dst_val = u32::from_be(ipv4.dst_addr);
 
             // Check if this destination IP is a known Floating IP (FIP) requiring translation.
-            if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(&dst_val) } {
+            if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(dst_val) } {
                 // 1. Rewrite the Layer 3 Destination Address
                 ipv4.dst_addr = u32::to_be(internal_ip);
 
@@ -109,22 +90,22 @@ pub fn apply_dnat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
     // -----------------------------------------------------------------------
     // ARP PACKET PROCESSING
     // -----------------------------------------------------------------------
-    else if eth_type == EtherType::Arp {
-        if let Ok(arp_ptr) = ptr_at_mut::<ArpHdr>(ctx, EthHdr::LEN) {
-            let mut arp = unsafe { core::ptr::read_unaligned(arp_ptr) };
+    else if eth_type == EtherType::Arp
+        && let Ok(arp_ptr) = ptr_at_mut::<ArpHdr>(ctx, EthHdr::LEN)
+    {
+        let mut arp = unsafe { core::ptr::read_unaligned(arp_ptr) };
 
-            // Extract the Target Protocol Address (TPA) - the IP being asked about.
-            let mut tpa_val = u32::from_be(arp.tpa);
+        // Extract the Target Protocol Address (TPA) - the IP being asked about.
+        let mut tpa_val = u32::from_be(arp.tpa);
 
-            // If the ARP request is looking for a Floating IP, rewrite it so the
-            // internal VM actually recognizes it and responds.
-            if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(&tpa_val) } {
-                arp.tpa = u32::to_be(internal_ip);
-                unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
-                tpa_val = internal_ip;
-            }
-            return Some(tpa_val);
+        // If the ARP request is looking for a Floating IP, rewrite it so the
+        // internal VM actually recognizes it and responds.
+        if let Some(&internal_ip) = unsafe { FIP_DNAT_MAP.get(tpa_val) } {
+            arp.tpa = u32::to_be(internal_ip);
+            unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
+            tpa_val = internal_ip;
         }
+        return Some(tpa_val);
     }
     None
 }
@@ -160,7 +141,7 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
             let src_val = u32::from_be(inner_ip.src_addr);
 
             // Check if this source IP should be masked behind a Floating IP (FIP).
-            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(&src_val) } {
+            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(src_val) } {
                 // 1. Rewrite the Layer 3 Source Address (Masking)
                 inner_ip.src_addr = u32::to_be(fip);
 
@@ -203,23 +184,23 @@ pub fn apply_snat(ctx: &XdpContext, eth_type: EtherType) -> Option<u32> {
     // -----------------------------------------------------------------------
     // ARP PACKET PROCESSING
     // -----------------------------------------------------------------------
-    else if eth_type == EtherType::Arp {
-        if let Ok(arp_ptr) = ptr_at_mut::<ArpHdr>(ctx, EthHdr::LEN) {
-            let mut arp = unsafe { core::ptr::read_unaligned(arp_ptr) };
+    else if eth_type == EtherType::Arp
+        && let Ok(arp_ptr) = ptr_at_mut::<ArpHdr>(ctx, EthHdr::LEN)
+    {
+        let mut arp = unsafe { core::ptr::read_unaligned(arp_ptr) };
 
-            // Extract the Sender Protocol Address (SPA) - who is claiming this ARP.
-            let spa_val = u32::from_be(arp.spa);
+        // Extract the Sender Protocol Address (SPA) - who is claiming this ARP.
+        let spa_val = u32::from_be(arp.spa);
 
-            // If an internal VM is sending an ARP reply/request, mask its internal IP
-            // with the public Floating IP so the external network accepts it.
-            if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(&spa_val) } {
-                arp.spa = u32::to_be(fip);
-                unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
-            }
-
-            // Store the Target Protocol Address (TPA) for routing purposes.
-            dest_ip = Some(u32::from_be(arp.tpa));
+        // If an internal VM is sending an ARP reply/request, mask its internal IP
+        // with the public Floating IP so the external network accepts it.
+        if let Some(&fip) = unsafe { FIP_SNAT_MAP.get(spa_val) } {
+            arp.spa = u32::to_be(fip);
+            unsafe { core::ptr::write_unaligned(arp_ptr, arp) };
         }
+
+        // Store the Target Protocol Address (TPA) for routing purposes.
+        dest_ip = Some(u32::from_be(arp.tpa));
     }
 
     // Return the destination IP (whether we modified the packet or not) so

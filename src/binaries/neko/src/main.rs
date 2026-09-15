@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod regex_rules;
 mod command_rules;
+mod regex_rules;
 
 use log::LevelFilter;
 
 use tokio::process::Command;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{Request, Response, Status, transport::Server};
 
 pub mod root_wrapper {
     tonic::include_proto!("root_wrapper");
@@ -49,14 +49,19 @@ impl NekoRootWrapper for Checker {
         if !self.is_allowed(&req.command, &req.args) {
             log::error!(
                 "[REJECTED] Unauthorized command pattern: {} {:?}",
-                req.command, req.args
+                req.command,
+                req.args
             );
             return Err(Status::permission_denied(
                 "Command or argument pattern not permitted by policy",
             ));
         }
 
-        log::info!("[EXECUTING] Allowed command: {} {:?}", req.command, req.args);
+        log::info!(
+            "[EXECUTING] Allowed command: {} {:?}",
+            req.command,
+            req.args
+        );
 
         // Execute via Tokio async Command (bypasses shell expansion)
         match Command::new(&req.command).args(&req.args).output().await {

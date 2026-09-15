@@ -275,7 +275,7 @@ async fn handle_vm_creation(
     .await
     {
         Ok(_) => return,
-        Err(e) =>  log::error!("fail: {:?}", e),
+        Err(e) => log::error!("fail: {:?}", e),
     };
 }
 

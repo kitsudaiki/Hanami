@@ -14,20 +14,22 @@
 
 use tonic::transport::Channel;
 
-
 pub mod root_wrapper {
     tonic::include_proto!("root_wrapper");
 }
 
-use root_wrapper::neko_root_wrapper_client::NekoRootWrapperClient;
 use root_wrapper::CommandRequest;
+use root_wrapper::neko_root_wrapper_client::NekoRootWrapperClient;
 
 use ainari_common::error::*;
 
-pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Channel>, AinariError> {
+pub async fn init_neko_root_wrapper_client() -> Result<NekoRootWrapperClient<Channel>, AinariError>
+{
     NekoRootWrapperClient::connect("http://127.0.0.1:54515")
         .await
-        .map_err(|e| AinariError::InternalError(format!("Connection to Neko-root-wrapper failed: {}", e)))
+        .map_err(|e| {
+            AinariError::InternalError(format!("Connection to Neko-root-wrapper failed: {}", e))
+        })
 }
 
 pub async fn run_root_cmd(

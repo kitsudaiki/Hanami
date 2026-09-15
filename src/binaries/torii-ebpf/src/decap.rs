@@ -1,29 +1,14 @@
-// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use aya_ebpf::{bindings::xdp_action, programs::XdpContext};
-use network_types::{
-    eth::{EthHdr, EtherType},
-    ip::IpProto,
-};
-
-use crate::{
-    headers::{Ipv4Hdr, UdpHdr},
-    maps::lookup_route,
-    nat::apply_snat,
-    utils::ptr_at,
-};
+use crate::filter::filter_allows;
+use crate::forward::redirect_local;
+use crate::headers::{Ipv4Hdr, UdpHdr};
+use crate::maps::lookup_route;
+use crate::nat::apply_snat;
+use crate::utils::ptr_at;
+use aya_ebpf::bindings::xdp_action;
+use aya_ebpf::programs::XdpContext;
+use network_types::eth::{EthHdr, EtherType};
+use network_types::ip::IpProto;
+use torii_common::ROUTE_ACTION_LOCAL;
 
 /// Evaluates whether an incoming packet is a UDP tunnel packet.
 ///
@@ -71,6 +56,14 @@ pub fn is_tunnel_packet(ctx: &XdpContext) -> bool {
 /// SNAT translations to the inner payload if mapping exists, and finally queries the
 /// eBPF routing map to redirect the packet to the correct local TAP interface.
 ///
+/// The packet filter of the matched route is applied before the delivery, so an
+/// include-list also guards what arrives from a remote gateway.
+///
+/// The inner Ethernet header still carries the addresses of the sending side, so
+/// the local delivery rewrites it to the next hop of the target link before the
+/// redirect. Without that step an unnumbered TAP would hand the VM a frame with
+/// a foreign destination MAC, which the VM would silently discard.
+///
 /// # Arguments
 /// * `ctx` - The XDP context containing the raw network packet
 ///
@@ -92,12 +85,17 @@ pub fn process_tunnel_packet(ctx: &XdpContext) -> u32 {
     let eth_type = unsafe { core::ptr::read_unaligned(inner_eth).ether_type };
 
     // Apply SNAT if necessary. Returns the true Target IP
-    if let Some(dest_ip) = apply_snat(ctx, eth_type) {
-        if let Some(target) = lookup_route(dest_ip) {
-            if target.action == 0 {
-                return unsafe { aya_ebpf::helpers::bpf_redirect(target.ifindex, 0) } as u32;
-            }
+    if let Some(dest_ip) = apply_snat(ctx, eth_type)
+        && let Some((route_key, target)) = lookup_route(dest_ip)
+        && target.action == ROUTE_ACTION_LOCAL
+    {
+        // Enforce the include-lists of the route on the receiving side as well:
+        // a packet that entered the overlay on another host has not been seen by
+        // this filter yet.
+        if !filter_allows(ctx, eth_type, route_key) {
+            return xdp_action::XDP_DROP;
         }
+        return redirect_local(ctx, &target);
     }
 
     // Drop invalid tunnel packets

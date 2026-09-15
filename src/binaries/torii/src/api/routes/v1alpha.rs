@@ -42,18 +42,18 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_proxy_internal_v1_0::delete_proxy_internal)),
                 ),
         )
-        .service(
-            scope("/floating_ip").service(
-                resource("/internal")
-                    .route(post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal)),
-                // .route(get().to(list_proxy_internal_v1_0::list_route_internal)),
-            ),
-            // .service(
-            //     resource("/{route_uuid}/internal")
-            //         .route(get().to(get_route_internal_v1_0::get_route_internal))
-            //         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
-            // ),
-        )
+        // .service(
+        //     // scope("/floating_ip").service(
+        //     //     resource("/internal")
+        //     //         .route(post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal)),
+        //     //     // .route(get().to(list_proxy_internal_v1_0::list_route_internal)),
+        //     // ),
+        //     // .service(
+        //     //     resource("/{route_uuid}/internal")
+        //     //         .route(get().to(get_route_internal_v1_0::get_route_internal))
+        //     //         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
+        //     // ),
+        // )
         .service(
             scope("/route").service(
                 resource("/internal")

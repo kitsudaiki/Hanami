@@ -17,6 +17,23 @@ members = [
     "src/libs/rust/ainari_clients", 
     "src/libs/rust/ainari_api_structs"
 ]
+default-members = [
+    "src/binaries/sakura",
+    "src/binaries/hanami",
+    "src/binaries/miko",
+    "src/binaries/ryokan",
+    "src/binaries/torii",
+    "src/binaries/omamori",
+    "src/binaries/onsen",
+    "src/binaries/neko",
+    "src/libs/rust/torii_common",
+    "src/libs/rust/ainari_common",
+    "src/libs/rust/ainari_dataset",
+    "src/libs/rust/ainari_api",
+    "src/libs/rust/ainari_hardware",
+    "src/libs/rust/ainari_clients",
+    "src/libs/rust/ainari_api_structs"
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -48,9 +65,11 @@ strip = false
 opt-level = 0
 debug = true
 overflow-checks = true
+panic = "abort"
 
 [profile.release]
 opt-level = 3
 lto = "fat"
 codegen-units = 8
 strip = true
+panic = "abort"

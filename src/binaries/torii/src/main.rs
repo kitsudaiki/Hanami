@@ -20,7 +20,7 @@ mod database;
 use log::LevelFilter;
 
 use core::proxy_handler::*;
-use core::routing::*;
+use core::routing_interface::*;
 
 #[actix_web::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

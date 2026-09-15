@@ -1,20 +1,19 @@
 use cloud_hypervisor_client::apis::DefaultApi;
 use cloud_hypervisor_client::models::{
-    ConsoleMode, CpusConfig, DiskConfig, MemoryConfig, NetConfig, PayloadConfig, ConsoleConfig, SerialConfig,
-    VmConfig,
+    ConsoleConfig, ConsoleMode, CpusConfig, DiskConfig, MemoryConfig, NetConfig, PayloadConfig,
+    SerialConfig, VmConfig,
 };
 use cloud_hypervisor_client::socket_based_api_client;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 use uuid::Uuid;
-use serde::{Deserialize, Serialize};
 
 use ainari_common::config as ainari_config;
 use ainari_common::error::AinariError;
 
 use ainari_clients::root_wrap::*;
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VmHandle {
@@ -23,14 +22,17 @@ pub struct VmHandle {
     pub pid: u32,
 }
 
-
 async fn create_tap_device(name: &str, ip_cidr: Option<&str>) -> Result<(), AinariError> {
     let mut neko_client = init_neko_root_wrapper_client().await?;
 
     // create tap-device
-    run_root_cmd(&mut neko_client, "ip", &["tuntap", "add", "mode", "tap", name])
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Failed to create TAP: {}", e)))?;
+    run_root_cmd(
+        &mut neko_client,
+        "ip",
+        &["tuntap", "add", "mode", "tap", name],
+    )
+    .await
+    .map_err(|e| AinariError::InternalError(format!("Failed to create TAP: {}", e)))?;
 
     // bring tap-device up
     run_root_cmd(&mut neko_client, "ip", &["link", "set", name, "up"])
@@ -38,9 +40,13 @@ async fn create_tap_device(name: &str, ip_cidr: Option<&str>) -> Result<(), Aina
         .map_err(|e| AinariError::InternalError(format!("Failed to bring TAP up: {}", e)))?;
 
     // disable offloading
-    run_root_cmd(&mut neko_client, "ethtool", &["-K", name, "tx", "off", "rx", "off"])
-        .await
-        .map_err(|e| AinariError::InternalError(format!("Failed to disable offloading: {}", e)))?;
+    run_root_cmd(
+        &mut neko_client,
+        "ethtool",
+        &["-K", name, "tx", "off", "rx", "off"],
+    )
+    .await
+    .map_err(|e| AinariError::InternalError(format!("Failed to disable offloading: {}", e)))?;
 
     // assign IP CIDR to tap-device
     if let Some(ip) = ip_cidr {
@@ -61,7 +67,6 @@ pub async fn create_ch_virtual_machine(
     tap_name: &String,
     mac_address: &String,
 ) -> Result<VmHandle, AinariError> {
-
     create_tap_device(tap_name, Some("192.168.100.1/24")).await?;
     log::info!("Start creation of VM {uuid}");
 
@@ -110,7 +115,8 @@ pub async fn create_ch_virtual_machine(
             mode: ConsoleMode::Null,
             ..Default::default()
         }),
-        serial: Some(SerialConfig {  // Note: Depending on your ch-api version, this may be SerialConfig or ConsoleConfig
+        serial: Some(SerialConfig {
+            // Note: Depending on your ch-api version, this may be SerialConfig or ConsoleConfig
             mode: ConsoleMode::File,
             file: Some(format!("/tmp/{}-serial.log", uuid)),
             ..Default::default()
@@ -173,12 +179,11 @@ pub async fn create_ch_virtual_machine(
         socket_path: socket_path.clone(),
         pid: vm_pid,
     };
-    
+
     log::info!("New VM {uuid} started");
 
     Ok(handle)
 }
-
 
 // pub async fn delete_vm(handle: &VmHandle) -> HttpResponse {
 //     let client = socket_based_api_client(&handle.socket_path);
@@ -192,7 +197,7 @@ pub async fn create_ch_virtual_machine(
 //         }
 //         Err(e) => {
 //             eprintln!("API shutdown failed for {}: {:?}. Forcing kill...", handle.tap_name, e);
-            
+
 //             // 2. Fallback: Force kill the process if the API is unresponsive
 //             if let Some(pid) = handle.pid {
 //                 unsafe {
@@ -205,7 +210,7 @@ pub async fn create_ch_virtual_machine(
 
 //     // 3. Clean up the socket file
 //     let _ = std::fs::remove_file(&handle.socket_path);
-    
+
 //     // 4. (Optional) Clean up the serial log file
 //     let serial_log = format!("/tmp/{}-serial.log", handle.tap_name);
 //     let _ = std::fs::remove_file(&serial_log);

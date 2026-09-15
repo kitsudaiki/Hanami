@@ -1,22 +1,6 @@
-// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use core::mem;
-
-use aya_ebpf::programs::XdpContext;
-
 use crate::headers::Ipv4Hdr;
+use aya_ebpf::programs::XdpContext;
+use core::mem;
 
 /// Retrieves a validated, read-only pointer to a struct within the packet data buffer.
 ///
@@ -109,7 +93,7 @@ pub fn ipv4_checksum(hdr: &Ipv4Hdr) -> u16 {
 /// None. The checksum is mutated in place.
 #[inline(always)]
 pub fn csum_replace4(csum: &mut u16, old: u32, new: u32) {
-    let mut sum: u32 = (!*csum & 0xffff) as u32;
+    let mut sum: u32 = u32::from(!*csum);
 
     let old_1 = (old >> 16) as u16;
     let old_2 = (old & 0xffff) as u16;

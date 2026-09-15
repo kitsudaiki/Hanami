@@ -1,28 +1,10 @@
-// Copyright 2022-2026 Tobias Anker <tobias.anker@kitsunemimi.moe>
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-use aya_ebpf::{bindings::xdp_action, programs::XdpContext};
-use network_types::{
-    eth::{EthHdr, EtherType},
-    ip::IpProto,
-};
+use crate::headers::{Ipv4Hdr, UdpHdr};
+use crate::utils::{ipv4_checksum, ptr_at_mut};
+use aya_ebpf::bindings::xdp_action;
+use aya_ebpf::programs::XdpContext;
+use network_types::eth::{EthHdr, EtherType};
+use network_types::ip::IpProto;
 use torii_common::RouteTarget;
-
-use crate::{
-    headers::{Ipv4Hdr, UdpHdr},
-    utils::{ipv4_checksum, ptr_at_mut},
-};
 
 /// Encapsulates a local packet in a UDP tunnel and forwards it over the underlay network.
 ///

@@ -20,9 +20,9 @@ pub mod host;
 pub mod onsen_file_transfer;
 pub mod proxy;
 pub mod quota;
+pub mod root_wrap;
 pub mod secret;
 pub mod virtual_machine;
-pub mod root_wrap;
 
 use actix_web::dev::{Decompress, Payload};
 use awc::error::SendRequestError;

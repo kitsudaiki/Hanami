@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::LazyLock;
 use regex::Regex;
+use std::sync::LazyLock;
 
-pub static IFACE_NAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^[a-zA-Z0-9_\-]{1,15}$").expect("Invalid interface name regex")
-});
+pub static IFACE_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9_\-]{1,15}$").expect("Invalid interface name regex"));
 
-pub static IP_CIDR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^[0-9a-fA-F\.\:]+/[0-9]{1,3}$").expect("Invalid IP CIDR regex")
-});
+pub static IP_CIDR_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[0-9a-fA-F\.\:]+/[0-9]{1,3}$").expect("Invalid IP CIDR regex"));
