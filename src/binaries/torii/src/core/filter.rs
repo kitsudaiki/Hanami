@@ -8,9 +8,14 @@
 
 use std::net::Ipv4Addr;
 
+use uuid::Uuid;
+
 use torii_common::{FILTER_MAX_IP_RANGES, FILTER_MAX_PORT_RANGES, IpRange, PortRange, RouteFilter};
 
 use ainari_api_structs::route_structs::*;
+
+use crate::core::models::RouteFilterPod;
+use crate::core::state::GatewayState;
 
 /// Renders the canonical text form of an address range.
 ///
@@ -195,6 +200,87 @@ pub fn build_route_filter(rules: &RouteFilterRules) -> Result<RouteFilter, Strin
     }
 
     Ok(filter)
+}
+
+/// Resolves a route UUID to its destination address and its eBPF map key.
+///
+/// Every filter operation addresses a route by its UUID, while both eBPF maps
+/// are keyed by the destination address of that route - this is the one place
+/// that translation happens.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - The UUID of the route, taken from the URL
+///
+/// # Returns
+/// An `Option` with the destination address and the map key of the route, or
+/// `None` when no such route exists
+pub fn route_filter_key(st: &GatewayState, route_uuid: &Uuid) -> Option<(String, u32)> {
+    let route = st.routes.get(route_uuid)?;
+    let addr: Ipv4Addr = route.dest_ip.parse().ok()?;
+    Some((route.dest_ip.clone(), u32::from(addr)))
+}
+
+/// Commits a new set of include-lists for one route.
+///
+/// The translation into the eBPF representation happens first, so a filter that
+/// does not fit into the map value is rejected before anything is changed.
+/// A route whose lists are both empty is removed from the filter map entirely:
+/// no entry means no restriction, which is exactly what an empty include-list
+/// is supposed to express - and it saves the datapath a lookup per packet.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - The UUID of the route the filter belongs to
+/// * `dest_key` - The eBPF map key of that route
+/// * `rules` - The include-lists the route should have from now on
+///
+/// # Returns
+/// A `Result` that is `Ok(())` once both the eBPF map and the bookkeeping have
+/// been updated, or an error message with nothing changed
+pub fn apply_filter(
+    st: &mut GatewayState,
+    route_uuid: Uuid,
+    dest_key: u32,
+    rules: RouteFilterRules,
+) -> Result<(), String> {
+    if rules.is_empty() {
+        let _ = st.filter_map.remove(&dest_key);
+        st.filters.remove(&route_uuid);
+        return Ok(());
+    }
+
+    let filter = build_route_filter(&rules)?;
+    st.filter_map
+        .insert(dest_key, RouteFilterPod(filter), 0)
+        .map_err(|_| "eBPF Map error (filter)".to_string())?;
+    st.filters.insert(route_uuid, rules);
+    Ok(())
+}
+
+/// Builds the answer of a filter operation from the state of the route.
+///
+/// # Arguments
+/// * `st` - The locked gateway state
+/// * `route_uuid` - The UUID of the route that was worked on
+/// * `dest_ip` - Destination address of that route
+/// * `message` - Human readable summary of what the operation did
+///
+/// # Returns
+/// A `FilterResponse` carrying the current include-lists of the route
+pub fn build_filter_response(
+    st: &GatewayState,
+    route_uuid: Uuid,
+    dest_ip: String,
+    message: String,
+) -> FilterResponse {
+    FilterResponse {
+        success: true,
+        message,
+        route_uuid,
+        dest_ip,
+        filter: st.filters.get(&route_uuid).cloned().unwrap_or_default(),
+    }
 }
 
 #[cfg(test)]

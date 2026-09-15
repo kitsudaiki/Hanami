@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// pub mod delete_route_internal_v1_0;
-// pub mod get_route_internal_v1_0;
-// pub mod list_route_internal_v1_0;
 pub mod add_route_internal_v1_0;
+pub mod delete_route_internal_v1_0;
+pub mod list_route_v1_0;
+pub mod update_route_internal_v1_0;

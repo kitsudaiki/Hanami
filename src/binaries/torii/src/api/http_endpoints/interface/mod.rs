@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod add_floating_ip_internal_v1_0;
-pub mod delete_floating_ip_internal_v1_0;
+pub mod config_interface_internal_v1_0;
+pub mod register_tap_internal_v1_0;

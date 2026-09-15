@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use apistos::web::{Scope, delete, get, post, resource, scope};
+use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
+use crate::api::http_endpoints::crypto::*;
+use crate::api::http_endpoints::filter::*;
 use crate::api::http_endpoints::floating_ip::*;
+use crate::api::http_endpoints::interface::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::route::*;
 
@@ -42,28 +45,96 @@ pub fn v1alpha_routes() -> Scope {
                         .route(delete().to(delete_proxy_internal_v1_0::delete_proxy_internal)),
                 ),
         )
-        // .service(
-        //     // scope("/floating_ip").service(
-        //     //     resource("/internal")
-        //     //         .route(post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal)),
-        //     //     // .route(get().to(list_proxy_internal_v1_0::list_route_internal)),
-        //     // ),
-        //     // .service(
-        //     //     resource("/{route_uuid}/internal")
-        //     //         .route(get().to(get_route_internal_v1_0::get_route_internal))
-        //     //         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
-        //     // ),
-        // )
         .service(
-            scope("/route").service(
-                resource("/internal")
-                    .route(post().to(add_route_internal_v1_0::register_route_internal)),
-                // .route(get().to(list_proxy_internal_v1_0::list_route_internal)),
-            ),
-            // .service(
-            //     resource("/{route_uuid}/internal")
-            //         .route(get().to(get_route_internal_v1_0::get_route_internal))
-            //         .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
-            // ),
+            scope("/floating_ip")
+                .service(
+                    resource("/internal").route(
+                        post().to(add_floating_ip_internal_v1_0::register_floating_ip_internal),
+                    ),
+                )
+                .service(
+                    resource("/{floating_ip}/internal").route(
+                        delete().to(
+                            delete_floating_ip_internal_v1_0::delete_floating_ip_internal,
+                        ),
+                    ),
+                ),
+        )
+        .service(
+            scope("/route")
+                .service(
+                    resource("/internal")
+                        .route(post().to(add_route_internal_v1_0::register_route_internal)),
+                )
+                .service(resource("").route(get().to(list_route_v1_0::list_route)))
+                .service(
+                    resource("/{route_uuid}/internal")
+                        .route(put().to(update_route_internal_v1_0::update_route_internal))
+                        .route(delete().to(delete_route_internal_v1_0::delete_route_internal)),
+                )
+                .service(
+                    resource("/{route_uuid}/filter")
+                        .route(get().to(get_filter_v1_0::get_filter)),
+                )
+                .service(
+                    resource("/{route_uuid}/filter/internal")
+                        .route(delete().to(clear_filter_internal_v1_0::clear_filter_internal)),
+                )
+                .service(
+                    resource("/{route_uuid}/filter/ip_range/internal")
+                        .route(post().to(
+                            add_filter_ip_range_internal_v1_0::add_filter_ip_range_internal,
+                        ))
+                        .route(delete().to(
+                            delete_filter_ip_range_internal_v1_0::delete_filter_ip_range_internal,
+                        )),
+                )
+                .service(
+                    resource("/{route_uuid}/filter/port/internal")
+                        .route(post().to(add_filter_port_internal_v1_0::add_filter_port_internal))
+                        .route(delete().to(
+                            delete_filter_port_internal_v1_0::delete_filter_port_internal,
+                        )),
+                ),
+        )
+        .service(
+            scope("/filter").service(resource("").route(get().to(list_filter_v1_0::list_filter))),
+        )
+        .service(
+            scope("/crypto")
+                .service(
+                    resource("/key")
+                        .route(get().to(list_crypto_key_v1_0::list_crypto_key)),
+                )
+                .service(
+                    resource("/key/internal").route(
+                        post().to(add_crypto_key_internal_v1_0::register_crypto_key_internal),
+                    ),
+                )
+                .service(
+                    resource("/key/{direction}/{spi}/internal").route(
+                        delete().to(delete_crypto_key_internal_v1_0::delete_crypto_key_internal),
+                    ),
+                )
+                .service(
+                    resource("/toggle/internal")
+                        .route(post().to(toggle_crypto_internal_v1_0::toggle_crypto_internal)),
+                )
+                .service(
+                    resource("/connection")
+                        .route(get().to(list_connection_v1_0::list_connection)),
+                ),
+        )
+        .service(
+            scope("/interface")
+                .service(
+                    resource("/config/internal").route(
+                        post().to(config_interface_internal_v1_0::config_interface_internal),
+                    ),
+                )
+                .service(
+                    resource("/tap/internal")
+                        .route(post().to(register_tap_internal_v1_0::register_tap_internal)),
+                ),
         )
 }

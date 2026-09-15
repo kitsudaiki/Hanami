@@ -13,29 +13,21 @@
 // limitations under the License.
 
 
-use actix_web::{delete, get, post, put, web, App, HttpResponse, HttpServer, Responder};
 use aya::maps::HashMap as AyaHashMap;
 use aya::programs::{Xdp, XdpFlags};
 use aya::{include_bytes_aligned, Bpf};
-use torii_common::ArpProxy;
 use std::collections::HashMap;
-use std::net::Ipv4Addr;
 use std::sync::Arc;
-use tokio::signal;
 use tokio::sync::Mutex;
-use uuid::Uuid;
 
-use ainari_api_structs::route_structs::*;
 
-use crate::core::filter::{build_route_filter, parse_ip_range, parse_port_range};
 use crate::core::models::{
     ArpProxyPod,   
     RouteFilterPod,   
-    RouteTargetPod, TapInfo,  
+    RouteTargetPod,  
 };
-use crate::core::routing::build_route_target;
 use crate::core::state::GatewayState;
-use crate::core::utils::{enable_forwarding, get_ifindex, get_local_ip, get_mac_address, parse_mac, run_ip};
+use crate::core::utils::{enable_forwarding, get_ifindex};
 
 
 lazy_static::lazy_static! {
@@ -87,7 +79,9 @@ pub fn init_routing() -> GatewayState {
         println!("Warning: Underlay interface {} not found.", underlay_iface);
     }
 
-    let state = GatewayState {
+    
+
+    GatewayState {
         routes: HashMap::new(),
         floating_ips: HashMap::new(),
         taps: HashMap::new(),
@@ -100,7 +94,5 @@ pub fn init_routing() -> GatewayState {
         fip_snat_map,
         arp_proxy_map,
         bpf, // Retain Bpf context for dynamic API attachments
-    };
-
-    state
+    }
 }

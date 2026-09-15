@@ -12,47 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use actix_web::web::Json;
-use apistos::actix::CreatedJson;
+use actix_web::web::{Json, Path};
 use apistos::api_operation;
+use std::net::Ipv4Addr;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::routing_interface::*;
-
-
-use std::net::Ipv4Addr;
-
+use crate::core::filter::apply_filter;
 use crate::core::models::RouteTargetPod;
 use crate::core::routing::build_route_target;
+use crate::core::routing_interface::ROUTE_HANDLER;
 use crate::core::utils::get_ifindex;
 
-use ainari_api_structs::route_structs::*;
 use ainari_api::errors::ErrorResponse;
+use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
     tag = "route",
-    summary = "Register new route",
-    description = r###"Register new route."###,
+    summary = "Update route",
+    description = r###"Update an existing route atomically for zero-downtime migration.
+
+Because eBPF map updates are atomic at the kernel level, active connections pivot
+to the new tunnel destination without dropping packets. The floating-ip NAT maps
+remain unaffected."###,
     error_code = 400,
     error_code = 401,
+    error_code = 404,
     error_code = 500
 )]
-pub async fn register_route_internal(
+pub async fn update_route_internal(
+    route_uuid: Path<Uuid>,
     body: Json<RouteRequest>,
     _context: UserContext,
-) -> Result<CreatedJson<RouteResponse>, ErrorResponse> {
+) -> Result<Json<RouteResponse>, ErrorResponse> {
     // validate incoming json
     body.validate()
         .map_err(|e| ErrorResponse::BadRequest(format!("Invalid input: {e}")))?;
 
+    let route_uuid = route_uuid.into_inner();
+
+    // the destination address doubles as the key of the eBPF route map
     let ip_addr: Ipv4Addr = match body.dest_ip.parse() {
         Ok(ip) => ip,
         Err(_) => return Err(ErrorResponse::BadRequest("Invalid IP".to_string())),
     };
     let ip_u32 = u32::from(ip_addr);
 
+    // resolve the new target interface and its link layer details
     if get_ifindex(&body.target_iface) == 0 {
         return Err(ErrorResponse::NotFound(format!(
             "Interface {} not found",
@@ -63,15 +70,16 @@ pub async fn register_route_internal(
     // Snapshot the TAP registry so the (possibly slow) ARP resolution inside
     // the target construction does not block the rest of the gateway.
     let taps = { ROUTE_HANDLER.lock().await.taps.clone() };
-    let target = match build_route_target(&body, &taps) {
-        Ok(target) => target,
-        Err(_err) => return Err(ErrorResponse::BadRequest("Invalid Input".to_string())),
-    };
+    let target = build_route_target(&body, &taps).map_err(ErrorResponse::BadRequest)?;
 
-    let route_uuid = Uuid::new_v4();
     let mut st = ROUTE_HANDLER.lock().await;
 
-    let route = Route {
+    let previous_dest = match st.routes.get(&route_uuid) {
+        Some(route) => route.dest_ip.clone(),
+        None => return Err(ErrorResponse::NotFound("Route UUID not found".to_string())),
+    };
+
+    let updated_route = Route {
         uuid: route_uuid,
         dest_ip: body.dest_ip.clone(),
         target_iface: body.target_iface.clone(),
@@ -81,20 +89,39 @@ pub async fn register_route_internal(
         encrypted: body.encrypted,
     };
 
-    st.routes.insert(route_uuid, route.clone());
+    // ATOMIC KERNEL UPDATE: overwriting the key redirects the traffic instantly,
+    // without a delete/create gap.
     if st
         .route_map
         .insert(ip_u32, RouteTargetPod(target), 0)
         .is_err()
     {
-        return Err(ErrorResponse::InternalError("eBPF Map error".to_string()));
+        return Err(ErrorResponse::InternalError(
+            "eBPF Map error on update".to_string(),
+        ));
+    }
+
+    st.routes.insert(route_uuid, updated_route.clone());
+
+    // A route that changed its destination has to take its packet filter with
+    // it, otherwise the new destination would be reachable unfiltered while the
+    // old key keeps an orphaned entry behind. The stale routing entry goes away
+    // for exactly the same reason.
+    if previous_dest != body.dest_ip {
+        if let Ok(previous_addr) = previous_dest.parse::<Ipv4Addr>() {
+            let previous_key = u32::from(previous_addr);
+            let _ = st.route_map.remove(&previous_key);
+            let _ = st.filter_map.remove(&previous_key);
+        }
+        let rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
+        apply_filter(&mut st, route_uuid, ip_u32, rules).map_err(ErrorResponse::InternalError)?;
     }
 
     let resp = RouteResponse {
         success: true,
-        message: "Route created".to_string(),
-        route: Some(route),
+        message: "Route updated atomically".to_string(),
+        route: Some(updated_route),
     };
 
-    Ok(CreatedJson(resp))
+    Ok(Json(resp))
 }

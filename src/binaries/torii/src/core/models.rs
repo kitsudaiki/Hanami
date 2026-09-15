@@ -5,10 +5,8 @@
 //! devices and IPsec connections, plus the wrappers that make the eBPF map
 //! values usable with Aya.
 
-use std::net::Ipv4Addr;
 
 use torii_common::{ArpProxy, RouteFilter, RouteTarget};
-use uuid::Uuid;
 
 /// Wrapper for passing RouteTarget to Aya eBPF maps safely.
 #[derive(Clone, Copy)]
