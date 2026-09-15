@@ -95,7 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::set_max_level(LevelFilter::Info);
 
     let addr = "127.0.0.1:54515".parse()?;
-    let daemon = Checker::default();
+    let daemon = Checker;
 
     log::info!("Root wrapper daemon active on {}", addr);
 

@@ -118,8 +118,8 @@ pub fn add_new_floating_ip(
     context: &UserContext,
 ) -> QueryResult<usize> {
     let floating_ip = FloatingIpEntry {
-        uuid: network_uuid.clone(),
-        network_uuid: floating_ip_uuid.clone(),
+        uuid: *network_uuid,
+        network_uuid: *floating_ip_uuid,
         target_ip: target_ip.clone(),
         floating_ip_address: floating_ip_address.clone(),
         owner_id: context.user_id.clone(),
@@ -378,8 +378,8 @@ mod tests {
         };
 
         let floating_ip = FloatingIpEntry {
-            uuid: uuid1.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid1,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -442,8 +442,8 @@ mod tests {
         };
 
         let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid1,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -458,8 +458,8 @@ mod tests {
         };
 
         let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid2,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -504,8 +504,8 @@ mod tests {
         };
 
         let floating_ip = FloatingIpEntry {
-            uuid: uuid1.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid1,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -549,8 +549,8 @@ mod tests {
         };
 
         let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid1,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -565,8 +565,8 @@ mod tests {
         };
 
         let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid2,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -581,8 +581,8 @@ mod tests {
         };
 
         let floating_ip3 = FloatingIpEntry {
-            uuid: uuid3.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid3,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: owner_id.clone(),
@@ -624,8 +624,8 @@ mod tests {
         let floating_ip_address = "192.168.0.1".to_owned();
 
         let floating_ip1 = FloatingIpEntry {
-            uuid: uuid1.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid1,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: "test-user-42".to_string(),
@@ -640,8 +640,8 @@ mod tests {
         };
 
         let floating_ip2 = FloatingIpEntry {
-            uuid: uuid2.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid2,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: "test-user-43".to_string(),
@@ -656,8 +656,8 @@ mod tests {
         };
 
         let floating_ip3 = FloatingIpEntry {
-            uuid: uuid3.clone(),
-            network_uuid: network_uuid.clone(),
+            uuid: uuid3,
+            network_uuid: network_uuid,
             target_ip: target_ip.clone(),
             floating_ip_address: floating_ip_address.clone(),
             owner_id: "test-user-44".to_string(),

@@ -113,7 +113,7 @@ pub fn add_new_network(
     context: &UserContext,
 ) -> QueryResult<usize> {
     let network = NetworkEntry {
-        uuid: network_uuid.clone(),
+        uuid: *network_uuid,
         name: network_name.to_string().clone(),
         subnet: subnet.clone(),
         owner_id: context.user_id.clone(),
@@ -365,7 +365,7 @@ mod tests {
         };
 
         let network = NetworkEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -422,7 +422,7 @@ mod tests {
         };
 
         let network1 = NetworkEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -437,7 +437,7 @@ mod tests {
         };
 
         let network2 = NetworkEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -481,7 +481,7 @@ mod tests {
         };
 
         let network = NetworkEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -524,7 +524,7 @@ mod tests {
         };
 
         let network1 = NetworkEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -539,7 +539,7 @@ mod tests {
         };
 
         let network2 = NetworkEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -554,7 +554,7 @@ mod tests {
         };
 
         let network3 = NetworkEntry {
-            uuid: uuid3.clone(),
+            uuid: uuid3,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: owner_id.clone(),
@@ -595,7 +595,7 @@ mod tests {
         let subnet = "127.0.0.1".to_string();
 
         let network1 = NetworkEntry {
-            uuid: uuid1.clone(),
+            uuid: uuid1,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: "test-user-42".to_string(),
@@ -610,7 +610,7 @@ mod tests {
         };
 
         let network2 = NetworkEntry {
-            uuid: uuid2.clone(),
+            uuid: uuid2,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: "test-user-43".to_string(),
@@ -625,7 +625,7 @@ mod tests {
         };
 
         let network3 = NetworkEntry {
-            uuid: uuid3.clone(),
+            uuid: uuid3,
             name: name.clone(),
             subnet: subnet.clone(),
             owner_id: "test-user-44".to_string(),

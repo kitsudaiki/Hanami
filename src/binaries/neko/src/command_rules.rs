@@ -59,7 +59,7 @@ pub static COMMAND_RULES: LazyLock<Vec<CommandRule>> = LazyLock::new(|| {
                 ArgMatcher::Exact("add"),
                 ArgMatcher::Exact("mode"),
                 ArgMatcher::Exact("tap"),
-                ArgMatcher::Regex(&*IFACE_NAME_REGEX),
+                ArgMatcher::Regex(&IFACE_NAME_REGEX),
             ],
         },
         // 2. ip link set <name> up
@@ -68,7 +68,7 @@ pub static COMMAND_RULES: LazyLock<Vec<CommandRule>> = LazyLock::new(|| {
             args: vec![
                 ArgMatcher::Exact("link"),
                 ArgMatcher::Exact("set"),
-                ArgMatcher::Regex(&*IFACE_NAME_REGEX),
+                ArgMatcher::Regex(&IFACE_NAME_REGEX),
                 ArgMatcher::Exact("up"),
             ],
         },
@@ -77,7 +77,7 @@ pub static COMMAND_RULES: LazyLock<Vec<CommandRule>> = LazyLock::new(|| {
             command: "ethtool",
             args: vec![
                 ArgMatcher::Exact("-K"),
-                ArgMatcher::Regex(&*IFACE_NAME_REGEX),
+                ArgMatcher::Regex(&IFACE_NAME_REGEX),
                 ArgMatcher::Exact("tx"),
                 ArgMatcher::Exact("off"),
                 ArgMatcher::Exact("rx"),
@@ -90,9 +90,9 @@ pub static COMMAND_RULES: LazyLock<Vec<CommandRule>> = LazyLock::new(|| {
             args: vec![
                 ArgMatcher::Exact("addr"),
                 ArgMatcher::Exact("add"),
-                ArgMatcher::Regex(&*IP_CIDR_REGEX),
+                ArgMatcher::Regex(&IP_CIDR_REGEX),
                 ArgMatcher::Exact("dev"),
-                ArgMatcher::Regex(&*IFACE_NAME_REGEX),
+                ArgMatcher::Regex(&IFACE_NAME_REGEX),
             ],
         },
     ]
