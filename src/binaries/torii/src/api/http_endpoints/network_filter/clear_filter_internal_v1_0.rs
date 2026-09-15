@@ -24,7 +24,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "filter",
+    tag = "network_filter",
     summary = "Clear route filter",
     description = r###"Drop the whole packet filter of one route.
 

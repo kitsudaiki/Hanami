@@ -21,7 +21,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "interface",
+    tag = "network_interface",
     summary = "Configure interface",
     description = r###"Configure an existing network interface's IP and up/down state.
 

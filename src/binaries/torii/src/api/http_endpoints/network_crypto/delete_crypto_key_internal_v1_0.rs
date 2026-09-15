@@ -23,7 +23,7 @@ use ainari_api::errors::ErrorResponse;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "crypto",
+    tag = "network_crypto",
     summary = "Delete crypto-key",
     description = r###"Remove one IPsec key again, which is the second half of a key rotation.
 

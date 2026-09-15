@@ -24,7 +24,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "filter",
+    tag = "network_filter",
     summary = "Get route filter",
     description = r###"Show the packet filter currently attached to one route."###,
     error_code = 400,

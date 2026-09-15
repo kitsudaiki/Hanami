@@ -29,7 +29,7 @@ use ainari_api_structs::user_context::UserContext;
 use torii_common::ArpProxy;
 
 #[api_operation(
-    tag = "interface",
+    tag = "network_interface",
     summary = "Register new tap-device",
     description = r###"Create a new TAP device and dynamically attach the eBPF overlay program.
 

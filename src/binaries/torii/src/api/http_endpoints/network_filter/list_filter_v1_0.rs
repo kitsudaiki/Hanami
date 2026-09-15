@@ -22,7 +22,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "filter",
+    tag = "network_filter",
     summary = "List filters",
     description = r###"List the packet filters of every route that has one.
 

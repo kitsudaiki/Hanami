@@ -17,7 +17,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, build_filter_response, parse_port_range, route_filter_key};
+use crate::core::filter::{apply_filter, build_filter_response, parse_ip_range, route_filter_key};
 use crate::core::routing_interface::ROUTE_HANDLER;
 
 use ainari_api::errors::ErrorResponse;
@@ -25,23 +25,21 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "filter",
-    summary = "Add filter ports",
-    description = r###"Add ports to the include-list of one route.
+    tag = "network_filter",
+    summary = "Remove filter ip-ranges",
+    description = r###"Remove IP ranges from the include-list of one route.
 
-As long as the list is empty every port is allowed. Once it holds an entry, only
-TCP and UDP packets with a matching source *or* destination port are carried -
-matching either side is what lets the answers of an allowed service back through
-the reverse route. Traffic without ports (ICMP and friends) is not affected by
-this list; it is governed by the IP ranges alone."###,
+An entry is identified by the addresses it covers, not by the way it was written
+down: `10.0.0.0/24` and `10.0.0.0-10.0.0.255` remove the same entry. Removing the
+last range opens the route for every address again."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn add_filter_port_internal(
+pub async fn delete_filter_ip_range_internal(
     route_uuid: Path<Uuid>,
-    body: Json<FilterPortRequest>,
+    body: Json<FilterIpRangeRequest>,
     _context: UserContext,
 ) -> Result<Json<FilterResponse>, ErrorResponse> {
     // validate incoming json
@@ -50,14 +48,13 @@ pub async fn add_filter_port_internal(
 
     let route_uuid = route_uuid.into_inner();
 
-    if body.ports.is_empty() {
-        return Err(ErrorResponse::BadRequest("No port given".to_string()));
+    if body.ranges.is_empty() {
+        return Err(ErrorResponse::BadRequest("No IP range given".to_string()));
     }
 
-    // Parse everything up front: a request with one bad entry changes nothing.
-    let mut parsed = Vec::with_capacity(body.ports.len());
-    for spec in &body.ports {
-        parsed.push(parse_port_range(spec).map_err(ErrorResponse::BadRequest)?);
+    let mut parsed = Vec::with_capacity(body.ranges.len());
+    for spec in &body.ranges {
+        parsed.push(parse_ip_range(spec).map_err(ErrorResponse::BadRequest)?);
     }
 
     let mut st = ROUTE_HANDLER.lock().await;
@@ -67,28 +64,31 @@ pub async fn add_filter_port_internal(
     };
 
     let mut rules = st.filters.get(&route_uuid).cloned().unwrap_or_default();
-    let mut added = 0;
-    for rule in parsed {
-        let known = rules
-            .ports
+    let before = rules.ip_ranges.len();
+    rules.ip_ranges.retain(|existing| {
+        !parsed
             .iter()
-            .any(|existing| existing.first == rule.first && existing.last == rule.last);
-        if !known {
-            rules.ports.push(rule);
-            added += 1;
-        }
-    }
+            .any(|rule| rule.first == existing.first && rule.last == existing.last)
+    });
+    let removed = before - rules.ip_ranges.len();
 
-    apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
+    apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::InternalError)?;
 
-    let message = format!(
-        "{} port(s) added, {} in the include-list of {}",
-        added,
-        st.filters
-            .get(&route_uuid)
-            .map_or(0, |rules| rules.ports.len()),
-        dest_ip
-    );
+    let remaining = st
+        .filters
+        .get(&route_uuid)
+        .map_or(0, |rules| rules.ip_ranges.len());
+    let message = if remaining == 0 {
+        format!(
+            "{} IP range(s) removed, {} accepts every address again",
+            removed, dest_ip
+        )
+    } else {
+        format!(
+            "{} IP range(s) removed, {} left in the include-list of {}",
+            removed, remaining, dest_ip
+        )
+    };
     println!("{}", message);
 
     Ok(Json(build_filter_response(

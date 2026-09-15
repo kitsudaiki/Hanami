@@ -24,29 +24,17 @@ import (
 	"fmt"
 )
 
-func GetProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/proxy/%s", proxyId)
-	vars := map[string]interface{}{}
-	return SendGet(context, context.ToriiAddress, path, vars)
-}
-
-func ListProxy(context AccessContext) (map[string]interface{}, error) {
-	path := "v1alpha/proxy"
-	vars := map[string]interface{}{}
-	return SendGet(context, context.ToriiAddress, path, vars)
-}
-
-func DeleteProxy(context AccessContext, proxyId string) (map[string]interface{}, error) {
-	path := fmt.Sprintf("v1alpha/proxy/%s/internal", proxyId)
-	vars := map[string]interface{}{}
-	return SendDelete(context, context.ToriiAddress, path, vars)
-}
-
-func SetProxy(context AccessContext, targetAddress, virtualMachineUuid string) (map[string]interface{}, error) {
-	path := "v1alpha/proxy/internal"
+func AddFloatingIp(context AccessContext, floatingIp, internalIp string) (map[string]interface{}, error) {
+	path := "v1alpha/floating_ip/internal"
 	jsonBody := map[string]interface{}{
-		"target_address":       targetAddress,
-		"virtual_machine_uuid": virtualMachineUuid,
+		"floating_ip": floatingIp,
+		"internal_ip": internalIp,
 	}
 	return SendPost(context, context.ToriiAddress, path, jsonBody)
+}
+
+func DeleteFloatingIp(context AccessContext, floatingIp string) (map[string]interface{}, error) {
+	path := fmt.Sprintf("v1alpha/floating_ip/%s/internal", floatingIp)
+	vars := map[string]interface{}{}
+	return SendDelete(context, context.ToriiAddress, path, vars)
 }

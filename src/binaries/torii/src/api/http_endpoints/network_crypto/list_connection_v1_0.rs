@@ -22,7 +22,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "crypto",
+    tag = "network_crypto",
     summary = "List connections",
     description = r###"List the VM-to-VM connections this gateway knows about.
 

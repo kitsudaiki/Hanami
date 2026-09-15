@@ -22,7 +22,7 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "crypto",
+    tag = "network_crypto",
     summary = "List crypto-keys",
     description = r###"List the IPsec keys this gateway currently holds.
 

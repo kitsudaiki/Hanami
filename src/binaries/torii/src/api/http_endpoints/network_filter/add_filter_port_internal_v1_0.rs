@@ -17,7 +17,7 @@ use apistos::api_operation;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::core::filter::{apply_filter, build_filter_response, parse_ip_range, route_filter_key};
+use crate::core::filter::{apply_filter, build_filter_response, parse_port_range, route_filter_key};
 use crate::core::routing_interface::ROUTE_HANDLER;
 
 use ainari_api::errors::ErrorResponse;
@@ -25,23 +25,23 @@ use ainari_api_structs::route_structs::*;
 use ainari_api_structs::user_context::UserContext;
 
 #[api_operation(
-    tag = "filter",
-    summary = "Add filter ip-ranges",
-    description = r###"Add IP ranges to the include-list of one route.
+    tag = "network_filter",
+    summary = "Add filter ports",
+    description = r###"Add ports to the include-list of one route.
 
-The list starts out empty, which means "every address is allowed". The first
-entry flips that around: from then on the route only carries packets whose
-source address is named by one of its ranges. Entries may be written as a single
-address, as a subnet in CIDR notation or as an explicit range, and adding one
-that is already present is a no-op rather than an error."###,
+As long as the list is empty every port is allowed. Once it holds an entry, only
+TCP and UDP packets with a matching source *or* destination port are carried -
+matching either side is what lets the answers of an allowed service back through
+the reverse route. Traffic without ports (ICMP and friends) is not affected by
+this list; it is governed by the IP ranges alone."###,
     error_code = 400,
     error_code = 401,
     error_code = 404,
     error_code = 500
 )]
-pub async fn add_filter_ip_range_internal(
+pub async fn add_filter_port_internal(
     route_uuid: Path<Uuid>,
-    body: Json<FilterIpRangeRequest>,
+    body: Json<FilterPortRequest>,
     _context: UserContext,
 ) -> Result<Json<FilterResponse>, ErrorResponse> {
     // validate incoming json
@@ -50,14 +50,14 @@ pub async fn add_filter_ip_range_internal(
 
     let route_uuid = route_uuid.into_inner();
 
-    if body.ranges.is_empty() {
-        return Err(ErrorResponse::BadRequest("No IP range given".to_string()));
+    if body.ports.is_empty() {
+        return Err(ErrorResponse::BadRequest("No port given".to_string()));
     }
 
     // Parse everything up front: a request with one bad entry changes nothing.
-    let mut parsed = Vec::with_capacity(body.ranges.len());
-    for spec in &body.ranges {
-        parsed.push(parse_ip_range(spec).map_err(ErrorResponse::BadRequest)?);
+    let mut parsed = Vec::with_capacity(body.ports.len());
+    for spec in &body.ports {
+        parsed.push(parse_port_range(spec).map_err(ErrorResponse::BadRequest)?);
     }
 
     let mut st = ROUTE_HANDLER.lock().await;
@@ -70,11 +70,11 @@ pub async fn add_filter_ip_range_internal(
     let mut added = 0;
     for rule in parsed {
         let known = rules
-            .ip_ranges
+            .ports
             .iter()
             .any(|existing| existing.first == rule.first && existing.last == rule.last);
         if !known {
-            rules.ip_ranges.push(rule);
+            rules.ports.push(rule);
             added += 1;
         }
     }
@@ -82,11 +82,11 @@ pub async fn add_filter_ip_range_internal(
     apply_filter(&mut st, route_uuid, dest_key, rules).map_err(ErrorResponse::BadRequest)?;
 
     let message = format!(
-        "{} IP range(s) added, {} in the include-list of {}",
+        "{} port(s) added, {} in the include-list of {}",
         added,
         st.filters
             .get(&route_uuid)
-            .map_or(0, |rules| rules.ip_ranges.len()),
+            .map_or(0, |rules| rules.ports.len()),
         dest_ip
     );
     println!("{}", message);

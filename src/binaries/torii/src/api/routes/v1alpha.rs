@@ -16,10 +16,10 @@ use apistos::web::{Scope, delete, get, post, put, resource, scope};
 
 use ainari_api::endpoints::*;
 
-use crate::api::http_endpoints::crypto::*;
-use crate::api::http_endpoints::filter::*;
 use crate::api::http_endpoints::floating_ip::*;
-use crate::api::http_endpoints::interface::*;
+use crate::api::http_endpoints::network_crypto::*;
+use crate::api::http_endpoints::network_filter::*;
+use crate::api::http_endpoints::network_interface::*;
 use crate::api::http_endpoints::proxy::*;
 use crate::api::http_endpoints::route::*;
 
@@ -98,10 +98,11 @@ pub fn v1alpha_routes() -> Scope {
                 ),
         )
         .service(
-            scope("/filter").service(resource("").route(get().to(list_filter_v1_0::list_filter))),
+            scope("/network_filter")
+                .service(resource("").route(get().to(list_filter_v1_0::list_filter))),
         )
         .service(
-            scope("/crypto")
+            scope("/network_crypto")
                 .service(
                     resource("/key")
                         .route(get().to(list_crypto_key_v1_0::list_crypto_key)),
@@ -126,7 +127,7 @@ pub fn v1alpha_routes() -> Scope {
                 ),
         )
         .service(
-            scope("/interface")
+            scope("/network_interface")
                 .service(
                     resource("/config/internal").route(
                         post().to(config_interface_internal_v1_0::config_interface_internal),
