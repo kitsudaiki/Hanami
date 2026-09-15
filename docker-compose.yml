@@ -1,0 +1,37 @@
+services:
+  gateway-node:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile_torii_gateway
+    container_name: gateway-node
+    privileged: true
+    networks:
+      - underlay-network
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - gateway-data-node:/var/lib/gateway
+
+  vmm-gateway:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/Dockerfile_torii_vmm
+    container_name: vmm-gateway
+    privileged: true
+    networks:
+      - underlay-network
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - vmm-data-node:/var/lib/gateway
+
+networks:
+  underlay-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1600"
+      
+volumes:
+  gateway-data-node:
+  vmm-data-node:
+  vmm-data-node-2:
